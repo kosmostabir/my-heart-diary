@@ -41,11 +41,11 @@ const app = express()
 app.use(express.json())
 
 // app.post('/' + process.env.BOT_TOKEN, (req, resp) => {
-app.post('/telegraf/41ba335aaa7fbb808c03006bde7add9345871f9f802a61756e9bc6ee9f976a04', (req, resp) => {
-    console.log(req.body)
-    bot.processUpdate(req.body)
-    resp.sendStatus(200);
-})
+// app.post('/telegraf/41ba335aaa7fbb808c03006bde7add9345871f9f802a61756e9bc6ee9f976a04', (req, resp) => {
+//     console.log(req.body)
+//     bot.processUpdate(req.body)
+//     resp.sendStatus(200);
+// })
 
 // Enable graceful stop
 process.once('SIGINT', () => bot.stop('SIGINT'))
