@@ -1,9 +1,17 @@
 const {Telegraf} = require('telegraf');
 const {Client} = require("@notionhq/client");
 const bot = new Telegraf(process.env.BOT_TOKEN);
+const express = require('express')
+
+const app = express()
+app.use(express.json())
 
 const notion = new Client({auth: process.env.NOTION_TOKEN})
 const databaseId = process.env.NOTION_DATABASE;
+
+app.post('/', (req) => {
+    console.log(req.body)
+})
 
 bot.command('start', ctx => ctx.reply('Привіт, як ти? Розкажи мені'))
 
@@ -35,7 +43,7 @@ bot.on('message', (ctx) => {
 // Start webhook via launch method (preferred)
 bot.launch({
     webhook: {
-        domain: 'https://my-hearts-diary.herokuapp.com', port: process.env.PORT
+        domain: 'my-hearts-diary.herokuapp.com', port: process.env.PORT
     }
 })
 
