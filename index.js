@@ -17,7 +17,7 @@ app.post('/' + process.env.BOT_TOKEN, (req, resp) => {
     resp.sendStatus(200);
 })
 
-app.listen(process.env.PORT || 3000, "express started on port " + process.env.PORT)
+app.listen(process.env.PORT || 3000, () => console.log("express started on port " + process.env.PORT))
 
 // copy every message and send to the user
 bot.on('message', (ctx) => {
@@ -43,15 +43,11 @@ bot.on('message', (ctx) => {
         .catch(() => ctx.reply("Ой, щось не вийшло, спробуй пізіше"))
 })
 
-const props = process.env.NODE_ENV === 'production' ? {
+bot.launch(process.env.NODE_ENV === 'production' ? {
     webhook: {
         domain: process.env.HEROKU_URL + bot.token, port: process.env.PORT
     }
-} : {};
-
-console.log(JSON.stringify(props))
-
-bot.launch(props)
+} : {})
 
 // Enable graceful stop
 process.once('SIGINT', () => bot.stop('SIGINT'))
