@@ -4,6 +4,7 @@ const express = require('express')
 
 const app = express()
 app.use(express.json())
+const bot = new Telegraf(process.env.BOT_TOKEN);
 
 const notion = new Client({auth: process.env.NOTION_TOKEN})
 const databaseId = process.env.NOTION_DATABASE;
