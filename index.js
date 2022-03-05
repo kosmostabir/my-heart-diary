@@ -9,7 +9,19 @@ const USERS_TABLE_ID = 'e10d69e91bc54d208028f7c1a321f3f7';
 const MEMORIES_PARENT_PAGE_ID = 'a16a72e22c0a480b8cd54cd4d54d0386';
 
 bot.command('start', ctx => {
-    ctx.reply('Привіт, як тебе звати?', Markup.keyboard([ctx.chat.first_name, ctx.chat.username]));
+    notion.databases.query({
+        database_id: USERS_TABLE_ID, filter: {
+            property: 'telegramId', title: {
+                equals: String(ctx.chat.id)
+            }
+        }
+    }).then(({results}) => {
+        if (!results.length) {
+            ctx.reply('Привіт, як тебе звати?', Markup.keyboard([ctx.chat.first_name, ctx.chat.username]));
+        } else {
+            ctx.reply('З поверненням, ' + results[0].properties.name.rich_text[0].text.content)
+        }
+    })
 })
 bot.on('message', (ctx) => {
     notion.databases.query({
