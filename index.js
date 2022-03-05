@@ -32,7 +32,7 @@ bot.on('message', (ctx) => {
 
 bot.launch(process.env.NODE_ENV === 'production' ? {
     webhook: {
-        hookPath: `${process.env.HEROKU_URL}:${process.env.PORT}/${process.env.BOT_TOKEN}`,
+        hookPath: `${process.env.HEROKU_URL}/${process.env.BOT_TOKEN}`,
     }
 } : {})
 
