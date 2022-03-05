@@ -27,7 +27,8 @@ bot.on('message', (ctx) => {
                 }]
             }
         }
-    })
+    }).then(() => ctx.reply("Дякую, записав"))
+        .catch(() => ctx.reply("Ой, щось не вийшло, спробуй пізіше"))
 })
 
 // bot.launch();
