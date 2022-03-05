@@ -1,23 +1,43 @@
-const { Telegraf } = require('telegraf');
+const {Telegraf} = require('telegraf');
+const {Client} = require("@notionhq/client");
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
-bot.command('start', ctx => {
-    console.log(ctx.from)
-    bot.telegram.sendMessage(ctx.chat.id, 'Hello there! Welcome to the Code Capsules telegram bot.\nI echo messages. Please try it', {
+const notion = new Client({auth: process.env.NOTION_TOKEN})
+const databaseId = process.env.NOTION_DATABASE;
+
+bot.command('start', ctx => ctx.reply('Привіт, як ти? Розкажи мені'))
+
+// copy every message and send to the user
+bot.on('message', (ctx) => {
+    notion.pages.create({
+        parent: {
+            database_id: databaseId
+        }, properties: {
+            telegramId: {
+                title: [{
+                    text: {
+                        content: String(ctx.chat.id)
+                    }
+                }]
+            }, Message: {
+                rich_text: [{
+                    text: {
+                        content: ctx.message.text
+                    }
+                }]
+            }
+        }
     })
 })
 
-// copy every message and send to the user
-bot.on('message', (ctx) => ctx.telegram.sendCopy(ctx.chat.id, ctx.message))
-
+// bot.launch();
 // Start webhook via launch method (preferred)
 bot.launch({
     webhook: {
-      domain: 'https://nodejs-telegram-echobot-dzgubf.codecapsules.co.za',
-      port: process.env.PORT
+        domain: 'https://my-hearts-diary.herokuapp.com', port: process.env.PORT
     }
-  })
-  
+})
+
 // Enable graceful stop
 process.once('SIGINT', () => bot.stop('SIGINT'))
 process.once('SIGTERM', () => bot.stop('SIGTERM'))
