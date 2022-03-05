@@ -1,6 +1,5 @@
 const {Telegraf} = require('telegraf');
 const {Client} = require("@notionhq/client");
-const bot = new Telegraf(process.env.BOT_TOKEN);
 const express = require('express')
 
 const app = express()
@@ -9,11 +8,12 @@ app.use(express.json())
 const notion = new Client({auth: process.env.NOTION_TOKEN})
 const databaseId = process.env.NOTION_DATABASE;
 
-app.post('/', (req) => {
-    console.log(req.body)
-})
-
 bot.command('start', ctx => ctx.reply('Привіт, як ти? Розкажи мені'))
+
+app.post('/' + process.env.BOT_TOKEN, (req) => {
+    console.log(req.body)
+    bot.processUpdate(req.body)
+})
 
 // copy every message and send to the user
 bot.on('message', (ctx) => {
@@ -39,13 +39,11 @@ bot.on('message', (ctx) => {
         .catch(() => ctx.reply("Ой, щось не вийшло, спробуй пізіше"))
 })
 
-// bot.launch();
-// Start webhook via launch method (preferred)
-bot.launch({
+bot.launch(process.env.NODE_ENV === 'production' ? {
     webhook: {
-        domain: 'my-hearts-diary.herokuapp.com', port: process.env.PORT
+        domain: process.env.HEROKU_URL + bot.token, port: process.env.PORT
     }
-})
+} : {})
 
 // Enable graceful stop
 process.once('SIGINT', () => bot.stop('SIGINT'))
