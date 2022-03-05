@@ -11,10 +11,13 @@ const databaseId = process.env.NOTION_DATABASE;
 
 bot.command('start', ctx => ctx.reply('Привіт, як ти? Розкажи мені'))
 
-app.post('/' + process.env.BOT_TOKEN, (req) => {
+app.post('/' + process.env.BOT_TOKEN, (req, resp) => {
     console.log(req.body)
     bot.processUpdate(req.body)
+    resp.sendStatus(200);
 })
+
+app.listen(process.env.PORT || 3000, "express started on port " + process.env.PORT)
 
 // copy every message and send to the user
 bot.on('message', (ctx) => {
