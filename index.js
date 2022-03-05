@@ -32,7 +32,8 @@ bot.on('message', (ctx) => {
 
 bot.launch(process.env.NODE_ENV === 'production' ? {
     webhook: {
-        hookPath: `${process.env.HEROKU_URL}/${process.env.BOT_TOKEN}`,
+        domain: process.env.HEROKU_URL,
+        port: Number(process.env.PORT)
     }
 } : {})
 
@@ -51,6 +52,6 @@ process.once('SIGINT', () => bot.stop('SIGINT'))
 process.once('SIGTERM', () => bot.stop('SIGTERM'))
 
 
-app.listen(process.env.PORT || 3000, () => {
-    console.log(`Example app listening on port ${process.env.PORT || 3000}`)
-})
+// app.listen(process.env.PORT || 3000, () => {
+//     console.log(`Example app listening on port ${process.env.PORT || 3000}`)
+// })
