@@ -40,11 +40,15 @@ bot.on('message', (ctx) => {
         .catch(() => ctx.reply("Ой, щось не вийшло, спробуй пізіше"))
 })
 
-bot.launch(process.env.NODE_ENV === 'production' ? {
+const props = process.env.NODE_ENV === 'production' ? {
     webhook: {
         domain: process.env.HEROKU_URL + bot.token, port: process.env.PORT
     }
-} : {})
+} : {};
+
+console.log(JSON.stringify(props))
+
+bot.launch(props)
 
 // Enable graceful stop
 process.once('SIGINT', () => bot.stop('SIGINT'))
