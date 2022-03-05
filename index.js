@@ -17,8 +17,6 @@ app.post('/' + process.env.BOT_TOKEN, (req, resp) => {
     resp.sendStatus(200);
 })
 
-app.listen(process.env.PORT || 3000, () => console.log("express started on port " + process.env.PORT))
-
 // copy every message and send to the user
 bot.on('message', (ctx) => {
     notion.pages.create({
@@ -54,3 +52,8 @@ bot.launch(process.env.NODE_ENV === 'production' ? {
 // Enable graceful stop
 process.once('SIGINT', () => bot.stop('SIGINT'))
 process.once('SIGTERM', () => bot.stop('SIGTERM'))
+
+
+app.listen(process.env.PORT || 3000, () => {
+    console.log(`Example app listening on port ${process.env.PORT || 3000}`)
+})
