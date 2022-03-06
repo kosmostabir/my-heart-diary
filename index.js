@@ -159,7 +159,7 @@ bot.on('message', (ctx) => {
                             rich_text: [{text: {content: ctx.message.text}}]
                         }
                     }
-                })).then(() => ctx.reply("Ок, тепер зватиму тебе " + ctx.message.text)))
+                })).then(() => ctx.reply("Ок, тепер зватиму тебе " + ctx.message.text, WANT_TO_TELL_MARKUP)))
             }
             if (ctx.message.text === WANT_TO_TELL_ACTION) {
                 sendTypingStatus(ctx);
