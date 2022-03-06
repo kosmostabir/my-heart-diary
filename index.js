@@ -13,7 +13,9 @@ const MEMORIES_PARENT_PAGE_ID = 'a16a72e22c0a480b8cd54cd4d54d0386';
 
 const CONSENT_ACTION = 'consent';
 const CONSENT_COMMAND = 'consent';
+const RENAME_COMMAND = 'rename';
 const REFUSE_ACTION = 'refuse';
+const PROMPT_NEW_NAME_MSG = "Нове ім'я:"
 const WANT_TO_TELL_ACTION = 'Хочу щось розказати';
 const DONE_TELLING_ACTION = 'Дякую, що вислухав';
 const WANT_TO_TELL_MARKUP = {
@@ -66,8 +68,8 @@ const askUserName = ctx => {
 
 const askForConsent = ctx => ctx.reply('Дозволиш використовувати твої спогади у арт-проєктах?', Markup.inlineKeyboard([Markup.button.callback("Я даю згоду на обробку персональних даних згідно Закону України 2297-VI «Про захист персональних даних» від 13.02.2022 ст.6", CONSENT_ACTION), Markup.button.callback("Ні, вони лише для мене", REFUSE_ACTION),], {columns: 1}))
 
-function getDateTimeString(ctx) {
-    return new Date(ctx?.date).toString()
+function getDateTimeString() {
+    return new Date().toLocaleString('uk-UA') + ':\n';
 }
 
 function sendTypingStatus(ctx) {
@@ -96,6 +98,21 @@ bot.command('start', ctx => {
         }
     })
 })
+
+bot.action(CONSENT_ACTION, ctx => getUser(ctx).then(user => {
+    if (!user.properties.consent.checkbox) {
+        sendTypingStatus(ctx);
+        return updateUser(user, {
+            consent: {checkbox: true}
+        }).then(() => ctx.reply("Дякую за твій внесок!", WANT_TO_TELL_MARKUP))
+    } else {
+        ctx.reply("Дякую, у мене вже є твоя згода", WANT_TO_TELL_MARKUP)
+    }
+}));
+bot.command(CONSENT_COMMAND, askForConsent);
+bot.command(RENAME_COMMAND, ctx => ctx.reply(PROMPT_NEW_NAME_MSG, {
+    reply_markup: {force_reply: true}
+}));
 
 bot.on('message', (ctx) => {
     getUser(ctx).then(user => {
@@ -126,6 +143,24 @@ bot.on('message', (ctx) => {
             clearTimeout(timers.get(ctx.chat.id));
             timers.set(ctx.chat.id, setTimeout(() => ctx.reply("Дякую, що поділилася ❤️", DONE_TELLING_MARKUP), 60000 * 5))
 
+            if (ctx.message.reply_to_message?.text === PROMPT_NEW_NAME_MSG && ctx.message.text) {
+                sendTypingStatus(ctx);
+                return getUser(ctx).then(user => notion.pages.update({
+                    page_id: user.properties.personalPageId.rich_text[0].text.content,
+                    properties: {
+                        title: {
+                            title: [{text: {content: ctx.message.text}}]
+                        }
+                    }
+                }).then(() => notion.pages.update({
+                    page_id: user.id,
+                    properties: {
+                        name: {
+                            rich_text: [{text: {content: ctx.message.text}}]
+                        }
+                    }
+                })).then(() => ctx.reply("Ок, тепер зватиму тебе " + ctx.message.text)))
+            }
             if (ctx.message.text === WANT_TO_TELL_ACTION) {
                 sendTypingStatus(ctx);
                 getUser(ctx)
@@ -140,7 +175,12 @@ bot.on('message', (ctx) => {
                     return notion.blocks.children.append({
                         block_id: user.properties.personalPageId.rich_text[0].text.content, children: [{
                             paragraph: {
-                                rich_text: [{text: {content: getDateTimeString()}}, {text: {content: ctx.message.text}}]
+                                rich_text: [
+                                    {
+                                        text: {content: getDateTimeString()},
+                                        annotations: {italic: true}
+                                    },
+                                    {text: {content: ctx.message.text}}]
                             }
                         }]
                     })
@@ -203,20 +243,6 @@ bot.action(REFUSE_ACTION, ctx => getUser(ctx).then(user => {
         ctx.reply("Не хвилюйся, твої спогади у секреті", WANT_TO_TELL_MARKUP)
     }
 }))
-
-const giveConsent = ctx => getUser(ctx).then(user => {
-    if (!user.properties.consent.checkbox) {
-        sendTypingStatus(ctx);
-        return updateUser(user, {
-            consent: {checkbox: true}
-        }).then(() => ctx.reply("Дякую за твій внесок!", WANT_TO_TELL_MARKUP))
-    } else {
-        ctx.reply("Дякую, у мене вже є твоя згода", WANT_TO_TELL_MARKUP)
-    }
-})
-
-bot.action(CONSENT_ACTION, giveConsent);
-bot.command(CONSENT_COMMAND, giveConsent);
 
 bot.launch(process.env.NODE_ENV === 'production' ? {
     webhook: {
