@@ -92,7 +92,7 @@ bot.command('start', ctx => {
         }
     }).then(({results}) => {
         if (!results.length) {
-            bot.telegram.sendMessage(ctx.chat.id, 'Привіт, я бот-щоденник один для всіхісную задля збереження наших спільних спогадів, думок, переживань та рефлексій.')
+            bot.telegram.sendMessage(ctx.chat.id, 'Привіт, я існую задля збереження наших спільних спогадів, думок, переживань та рефлексій.')
                 .then(() => askUserName(ctx));
         } else {
             ctx.reply('З поверненням, ' + results[0].properties.name.rich_text[0].text.content, WANT_TO_TELL_MARKUP);
