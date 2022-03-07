@@ -30,6 +30,29 @@ const WANT_TO_ADD_ACTION = 'Хочу щось додати';
 const WANT_TO_TELL_MARKUP = Markup.inlineKeyboard([Markup.button.callback(WANT_TO_TELL_ACTION, WANT_TO_TELL_ACTION)])
 const FORCE_REPLY_MARKUP = {reply_markup: {force_reply: true}};
 
+/**
+ *
+ * @type {(() => Promise)[]}
+ */
+const queue = [];
+let writing;
+
+/**
+ *
+ * @param func {() => Promise}
+ */
+function doPerformWriteOperation(func) {
+    if (writing) {
+        queue.push(func)
+    } else {
+        function next() {
+            return queue.length ? queue.shift()().then(() => writing = next()) : null;
+        }
+
+        writing = func().then(() => writing = next());
+    }
+}
+
 try {
 
     /**
@@ -50,9 +73,20 @@ try {
      * @param user {parent: {type: "page_id", page_id: IdRequest}, id: string, properties: {telegramId: {type: "title", title: Array<RichTextItemResponse>, id: string}, name: {type: "rich_text", rich_text: Array<RichTextItemResponse>, id: string}, personalPageId: {type: "rich_text", rich_text: Array<RichTextItemResponse>, id: string}, consent: {type: "checkbox", checkbox: boolean, id: string}}}
      * @param properties {telegramId: {title: Array<RichTextItemResponse>}, name: { rich_text: Array<RichTextItemResponse>}, personalPageId: {rich_text: Array<RichTextItemResponse>}, consent: {checkbox: boolean}, email: {email: boolean}}
      */
-    const updateUser = (user, properties) => notion.pages.update({
+    const updateUser = (user, properties) => performWriteOperation(() => notion.pages.update({
         page_id: user.id, properties
-    })
+    }))
+
+    /**
+     *
+     * @param action {() => Promise}
+     * @returns {Promise<unknown>}
+     */
+    function performWriteOperation(action) {
+        return new Promise(resolve => {
+            doPerformWriteOperation(() => action().then(resolve))
+        })
+    }
 
     const askUserName = ctx => {
         const options = [ctx.chat.username];
@@ -208,7 +242,7 @@ try {
         sendTypingStatus(ctx);
         getUser(ctx).then(user => {
             if (!user) {
-                return notion.pages.create({
+                return performWriteOperation(() => notion.pages.create({
                     parent: {
                         page_id: MEMORIES_PARENT_PAGE_ID,
                     }, properties: {
@@ -226,7 +260,7 @@ try {
                             rich_text: [{text: {content: personalPageId}}]
                         }
                     }
-                })).then(() => {
+                }))).then(() => {
                     ctx.reply(`Дякую ${ctx.message.text}, що маєш в собі сили розповісти свою історію!`);
                     askForConsent(ctx);
                     promptEmail(ctx);
@@ -234,17 +268,15 @@ try {
             } else {
                 if (ctx.message.reply_to_message) {
                     if (ctx.message.reply_to_message.text === PROMPT_NEW_NAME_MSG && ctx.message.text) {
-                        return getUser(ctx).then(user => notion.pages.update({
+                        return getUser(ctx).then(user => performWriteOperation(() => notion.pages.update({
                             page_id: user.properties.personalPageId.rich_text[0].text.content, properties: {
                                 title: {
                                     title: [{text: {content: ctx.message.text}}]
                                 }
                             }
-                        }).then(() => notion.pages.update({
-                            page_id: user.id, properties: {
-                                name: {
-                                    rich_text: [{text: {content: ctx.message.text}}]
-                                }
+                        })).then(() => updateUser(user, {
+                            name: {
+                                rich_text: [{text: {content: ctx.message.text}}]
                             }
                         })).then(() => ctx.reply("Ок, тепер зватиму тебе " + ctx.message.text, WANT_TO_TELL_MARKUP)))
                     } else if (ctx.message.reply_to_message.text === PROMPT_EMAIL_MESSAGE && ctx.message.text) {
@@ -258,26 +290,21 @@ try {
                         })
                     } else if (ctx.message.reply_to_message.text === PROMPT_FEEDBACK) {
                         return messageToNotionBlocks(ctx)
-                            .then(children => notion.blocks.children.append({
-                                block_id: FEEDBACK_PAGE_ID,
-                                children: [
-                                    {
-                                        paragraph: {
-                                            rich_text: [{text: {content: `Від @${ctx.chat.username} ${user.properties.telegramId.title[0].text.content}:`}}]
-                                        }
-                                    },
-                                    ...children
-                                ]
-                            }))
+                            .then(children => performWriteOperation(() => notion.blocks.children.append({
+                                block_id: FEEDBACK_PAGE_ID, children: [{
+                                    paragraph: {
+                                        rich_text: [{text: {content: `Від @${ctx.chat.username} ${user.properties.telegramId.title[0].text.content}:`}}]
+                                    }
+                                }, ...children]
+                            })))
                             .then(() => ctx.reply("Дякую за зворотній зв'язок!"))
                             .catch()
                     }
                 } else {
                     return messageToNotionBlocks(ctx)
-                        .then(children => notion.blocks.children.append({
-                            block_id: user.properties.personalPageId.rich_text[0].text.content,
-                            children
-                        }))
+                        .then(children => performWriteOperation(() => notion.blocks.children.append({
+                            block_id: user.properties.personalPageId.rich_text[0].text.content, children
+                        })))
                         .then(() => ctx.reply('Дякую, записав', Markup.inlineKeyboard([Markup.button.callback(WANT_TO_ADD_ACTION, WANT_TO_ADD_ACTION), Markup.button.callback(THANKS_FOR_LISTENING_ACTION, THANKS_FOR_LISTENING_ACTION),], {columns: 1})))
                         .catch();
                 }
