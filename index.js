@@ -68,8 +68,18 @@ const askUserName = ctx => {
 
 const askForConsent = ctx => ctx.reply('Дозволиш використовувати твої спогади у арт-проєктах?', Markup.inlineKeyboard([Markup.button.callback("Я даю згоду на обробку персональних даних згідно Закону України 2297-VI «Про захист персональних даних» від 13.02.2022 ст.6", CONSENT_ACTION), Markup.button.callback("Ні, вони лише для мене", REFUSE_ACTION),], {columns: 1}))
 
-function getDateTimeString() {
-    return new Date().toLocaleString('uk-UA') + ':\n';
+function getDateTimeBlock(newLine = false) {
+    return {
+        text: {content: new Date().toLocaleString('uk-UA') + (newLine ? ':\n' : '')},
+        annotations: {italic: true}
+    };
+}
+
+function getFileCaption(ctx) {
+    return ctx.message.caption ? [
+        getDateTimeBlock(true),
+        {text: {content: ctx.message.caption}}
+    ] : [getDateTimeBlock()]
 }
 
 function sendTypingStatus(ctx) {
@@ -176,10 +186,7 @@ bot.on('message', (ctx) => {
                         block_id: user.properties.personalPageId.rich_text[0].text.content, children: [{
                             paragraph: {
                                 rich_text: [
-                                    {
-                                        text: {content: getDateTimeString()},
-                                        annotations: {italic: true}
-                                    },
+                                    getDateTimeBlock(true),
                                     {text: {content: ctx.message.text}}]
                             }
                         }]
@@ -189,7 +196,7 @@ bot.on('message', (ctx) => {
                         block_id: user.properties.personalPageId.rich_text[0].text.content, children: [{
                             audio: {
                                 external: {url},
-                                caption: ctx.message.caption && [{text: {content: ctx.message.caption}}],
+                                caption: getFileCaption(ctx),
                             }
                         }]
                     }))
@@ -198,7 +205,7 @@ bot.on('message', (ctx) => {
                         block_id: user.properties.personalPageId.rich_text[0].text.content, children: [{
                             image: {
                                 external: {url},
-                                caption: ctx.message.caption && [{text: {content: ctx.message.caption}}],
+                                caption: getFileCaption(ctx),
                             },
                         }]
                     }))
@@ -207,7 +214,7 @@ bot.on('message', (ctx) => {
                         block_id: user.properties.personalPageId.rich_text[0].text.content, children: [{
                             video: {
                                 external: {url},
-                                caption: ctx.message.caption && [{text: {content: ctx.message.caption}}],
+                                caption: getFileCaption(ctx),
                             }
                         }]
                     }))
@@ -216,7 +223,7 @@ bot.on('message', (ctx) => {
                         block_id: user.properties.personalPageId.rich_text[0].text.content, children: [{
                             file: {
                                 external: {url},
-                                caption: ctx.message.caption && [{text: {content: ctx.message.caption}}],
+                                caption: getFileCaption(ctx),
                             },
                         }]
                     }))
