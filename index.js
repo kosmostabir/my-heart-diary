@@ -58,7 +58,7 @@ try {
     /**
      *
      * @param ctx
-     * @returns {Promise<{parent: {type: "page_id", page_id: IdRequest}, id: string, properties: {telegramId: {type: "title", title: Array<RichTextItemResponse>, id: string}, name: {type: "rich_text", rich_text: Array<RichTextItemResponse>, id: string}, personalPageId: {type: "rich_text", rich_text: Array<RichTextItemResponse>, id: string}, consent: {type: "checkbox", checkbox: boolean, id: string}, email: {email: string}}}>}
+     * @returns {Promise<{parent: {type: "page_id", page_id: IdRequest}, id: string, properties: {telegramId: {type: "title", title: Array<RichTextItemResponse>, id: string}, name: {type: "rich_text", rich_text: Array<RichTextItemResponse>, id: string}, personalPageId: {type: "rich_text", rich_text: Array<RichTextItemResponse>, id: string}, consent: {type: "checkbox", checkbox: boolean, id: string}, email: {email: string}, linkToPage: {url: string}}}>}
      */
     const getUser = ctx => notion.databases.query({
         database_id: USERS_TABLE_ID, filter: {
@@ -144,9 +144,7 @@ try {
     bot.command(FEEDBACK_COMMAND, ctx => ctx.reply(PROMPT_FEEDBACK, FORCE_REPLY_MARKUP));
     bot.command(MEMORIES_COMMAND, ctx => getUser(ctx).then(user => {
         if (user.properties.email.email) {
-            notion.pages.retrieve({
-                page_id: user.properties.personalPageId.rich_text[0].text.content
-            }).then(page => ctx.reply(`Твій email ${user.properties.email.email}\n${page.url}`, Markup.inlineKeyboard([Markup.button.callback(CHANGE_EMAIL_ACTION, CHANGE_EMAIL_ACTION)])))
+            ctx.reply(`Твій email ${user.properties.email.email}\n${user.properties.linkToPage.url}`, Markup.inlineKeyboard([Markup.button.callback(CHANGE_EMAIL_ACTION, CHANGE_EMAIL_ACTION)]));
         } else return promptEmail(ctx);
     }))
     bot.command(ABOUT_COMMAND, ctx => ctx.reply('https://telegra.ph/Rozkazhi-men%D1%96-03-07-2'))
@@ -258,7 +256,8 @@ try {
                             rich_text: [{text: {content: ctx.message.text}}]
                         }, personalPageId: {
                             rich_text: [{text: {content: personalPageId}}]
-                        }
+                        },
+                        linkToPage: {url: `https://www.notion.so/${personalPageId.replaceAll('-', '')}`}
                     }
                 }))).then(() => {
                     ctx.reply(`Дякую ${ctx.message.text}, що маєш в собі сили розповісти свою історію!`);
@@ -277,16 +276,14 @@ try {
                         })).then(() => updateUser(user, {
                             name: {
                                 rich_text: [{text: {content: ctx.message.text}}]
-                            }
+                            },
                         })).then(() => ctx.reply("Ок, тепер зватиму тебе " + ctx.message.text, WANT_TO_TELL_MARKUP)))
                     } else if (ctx.message.reply_to_message.text === PROMPT_EMAIL_MESSAGE && ctx.message.text) {
                         return updateUser(user, {email: {email: ctx.message.text}}).then(() => {
                             ctx.reply(`${ctx.message.text} - записав. Скоро отримаєш лист!`);
-                            notion.pages.retrieve({
-                                page_id: user.properties.personalPageId.rich_text[0].text.content
-                            }).then(page => ctx.telegram.sendMessage(ANN_SHEVCHENKO_ID, `${user.properties.telegramId.title[0].text.content} ${user.properties.email.email ? 'надав' : 'змінив'} свій email.`)
+                            ctx.telegram.sendMessage(ANN_SHEVCHENKO_ID, `${user.properties.telegramId.title[0].text.content} ${user.properties.email.email ? 'надав' : 'змінив'} свій email.`)
                                 .then(() => ctx.telegram.sendMessage(ANN_SHEVCHENKO_ID, ctx.message.text))
-                                .then(() => ctx.telegram.sendMessage(ANN_SHEVCHENKO_ID, page.url)))
+                                .then(() => ctx.telegram.sendMessage(ANN_SHEVCHENKO_ID, user.properties.linkToPage.url))
                         })
                     } else if (ctx.message.reply_to_message.text === PROMPT_FEEDBACK) {
                         return messageToNotionBlocks(ctx)
@@ -322,17 +319,17 @@ try {
     process.once('SIGINT', () => bot.stop('SIGINT'))
     process.once('SIGTERM', () => bot.stop('SIGTERM'))
 
-    function messageAllUsers(message) {
+    function messageAllUsers(message, disable_notification = true) {
         notion.databases.query({
-            database_id: USERS_TABLE_ID
-        }).then(({results}) => results.forEach(user => bot.telegram.sendMessage(user.properties.telegramId.title[0].text.content, message)));
+            database_id: USERS_TABLE_ID,
+        }).then(({results}) => results.forEach(user => bot.telegram.sendMessage(user.properties.telegramId.title[0].text.content, message, {disable_notification}).catch()));
     }
 
-// messageAllUsers("Привіт! У мене оновився список команд:\nabout - про проект\n" +
-//     "memories - мої спогади\n" +
-//     "consent - перевірити згоду на використання матеріалів\n" +
-//     "rename - змінити своє ім'я\n" +
-//     "feedback - напиши нам")
+    // messageAllUsers("Привіт! Пару годин тому мені було не дуже добре - вибач. Зараз мені вже краще і я готовий тебе слухати. А ще у мене оновився список команд:\n/about - про проект\n" +
+    //     "/memories - мої спогади\n" +
+    //     "/consent - перевірити згоду на використання матеріалів\n" +
+    //     "/rename - змінити своє ім'я\n" +
+    //     "/feedback - напиши нам")
 
 } catch (e) {
     console.error(e)
