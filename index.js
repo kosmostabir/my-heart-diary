@@ -15,21 +15,15 @@ const CONSENT_ACTION = 'consent';
 const CONSENT_COMMAND = 'consent';
 const RENAME_COMMAND = 'rename';
 const REFUSE_ACTION = 'refuse';
+const THANKS_FOR_LISTENING_ACTION = 'Дякую, що вислухав';
 const PROMPT_NEW_NAME_MSG = "Нове ім'я:"
-const WANT_TO_TELL_ACTION = 'Хочу щось розказати';
-const DONE_TELLING_ACTION = 'Дякую, що вислухав';
-const WANT_TO_TELL_MARKUP = {
-    reply_markup: {
-        keyboard: [[WANT_TO_TELL_ACTION]],
-        one_time_keyboard: true
-    }
-}
-const DONE_TELLING_MARKUP = {
-    reply_markup: {
-        keyboard: [[DONE_TELLING_ACTION]],
-        one_time_keyboard: true
-    }
-}
+const WANT_TO_TELL_ACTION = 'Хочу щось розповісти';
+const WANT_TO_ADD_ACTION = 'Хочу щось додати';
+const WANT_TO_TELL_MARKUP = Markup.inlineKeyboard([Markup.button.callback(WANT_TO_TELL_ACTION, WANT_TO_TELL_ACTION)])
+const WANT_TO_ADD_MARKUP = Markup.inlineKeyboard([
+    Markup.button.callback(WANT_TO_TELL_ACTION, WANT_TO_TELL_ACTION),
+    Markup.button.callback(WANT_TO_ADD_ACTION, WANT_TO_ADD_ACTION),
+])
 
 const timers = new Map();
 
@@ -76,14 +70,16 @@ function getDateTimeBlock(newLine = false) {
 }
 
 function getFileCaption(ctx) {
-    return ctx.message.caption ? [
-        getDateTimeBlock(true),
-        {text: {content: ctx.message.caption}}
-    ] : [getDateTimeBlock()]
+    return ctx.message.caption
+        ? [
+            getDateTimeBlock(true),
+            {text: {content: ctx.message.caption}}
+        ]
+        : [getDateTimeBlock()]
 }
 
 function sendTypingStatus(ctx) {
-    return ctx.replyWithChatAction('typing');
+    // return ctx.replyWithChatAction('typing');
 }
 
 bot.command('start', ctx => {
@@ -96,7 +92,7 @@ bot.command('start', ctx => {
         }
     }).then(({results}) => {
         if (!results.length) {
-            bot.telegram.sendMessage(ctx.chat.id, 'Привіт, цей телеграм-канал створено задля збереження наших спільних спогадів, думок та переживань кожної. Кожна з нас є лише краплею, та всі разом ми - океан.')
+            bot.telegram.sendMessage(ctx.chat.id, 'Привіт, я бот-щоденник один для всіхісную задля збереження наших спільних спогадів, думок, переживань та рефлексій.')
                 .then(() => askUserName(ctx));
         } else {
             ctx.reply('З поверненням, ' + results[0].properties.name.rich_text[0].text.content, WANT_TO_TELL_MARKUP);
@@ -108,23 +104,64 @@ bot.command('start', ctx => {
         }
     })
 })
-
-bot.action(CONSENT_ACTION, ctx => getUser(ctx).then(user => {
-    if (!user.properties.consent.checkbox) {
-        sendTypingStatus(ctx);
-        return updateUser(user, {
-            consent: {checkbox: true}
-        }).then(() => ctx.reply("Дякую за твій внесок!", WANT_TO_TELL_MARKUP))
-    } else {
-        ctx.reply("Дякую, у мене вже є твоя згода", WANT_TO_TELL_MARKUP)
-    }
-}));
 bot.command(CONSENT_COMMAND, askForConsent);
 bot.command(RENAME_COMMAND, ctx => ctx.reply(PROMPT_NEW_NAME_MSG, {
     reply_markup: {force_reply: true}
 }));
 
+bot.action(THANKS_FOR_LISTENING_ACTION, ctx => {
+    ctx.telegram.answerCbQuery(ctx.update.callback_query.id);
+    ctx.reply('Дякую, що не мовчиш ❤️', Markup.inlineKeyboard([Markup.button.callback(WANT_TO_TELL_ACTION, WANT_TO_TELL_ACTION)]))
+})
+bot.action(WANT_TO_TELL_ACTION, ctx => {
+    ctx.telegram.answerCbQuery(ctx.update.callback_query.id);
+    ctx.reply('Я тебе уважно слухаю', Markup.removeKeyboard())
+})
+bot.action(WANT_TO_ADD_ACTION, ctx => {
+    ctx.telegram.answerCbQuery(ctx.update.callback_query.id);
+    ctx.reply('Звісно, розповідай, будь ласка', Markup.removeKeyboard())
+})
+bot.action(REFUSE_ACTION, ctx => getUser(ctx).then(user => {
+    if (user.properties.consent.checkbox) {
+        sendTypingStatus(ctx);
+        return updateUser(user, {
+            consent: {checkbox: false}
+        }).then(() => {
+            ctx.telegram.answerCbQuery(ctx.update.callback_query.id);
+            ctx.reply('Ок, твої спогади залишаться у секреті.\nЯкщо захочеш, можеш дати згоду пізніше командою /consent', WANT_TO_TELL_MARKUP);
+            CURATORS.forEach(curator => bot.telegram.sendMessage(curator, `${user.properties.name.rich_text[0].text.content} ${user.properties.telegramId.title[0].text.content} відкликала згоду на використання матеріалів`))
+        })
+    } else {
+        ctx.telegram.answerCbQuery(ctx.update.callback_query.id);
+        ctx.reply("Не хвилюйся, твої спогади у секреті", WANT_TO_TELL_MARKUP)
+    }
+}))
+bot.action(CONSENT_ACTION, ctx => getUser(ctx).then(user => {
+    if (!user.properties.consent.checkbox) {
+        sendTypingStatus(ctx);
+        return updateUser(user, {
+            consent: {checkbox: true}
+        }).then(() => {
+            ctx.telegram.answerCbQuery(ctx.update.callback_query.id);
+            ctx.reply("Дякую за твій внесок!", WANT_TO_TELL_MARKUP)
+        })
+    } else {
+        ctx.telegram.answerCbQuery(ctx.update.callback_query.id);
+        ctx.reply("Дякую, у мене вже є твоя згода", WANT_TO_TELL_MARKUP)
+    }
+}));
+
+function appendBlockAndReply(user, ctx, children) {
+    return notion.blocks.children.append({
+        block_id: user.properties.personalPageId.rich_text[0].text.content, children
+    }).then(() => ctx.reply('Дякую, записав', Markup.inlineKeyboard([
+        Markup.button.callback(WANT_TO_ADD_ACTION, WANT_TO_ADD_ACTION),
+        Markup.button.callback(THANKS_FOR_LISTENING_ACTION, THANKS_FOR_LISTENING_ACTION),
+    ])))
+}
+
 bot.on('message', (ctx) => {
+    sendTypingStatus(ctx);
     getUser(ctx).then(user => {
         if (!user) {
             return notion.pages.create({
@@ -146,15 +183,11 @@ bot.on('message', (ctx) => {
                     }
                 }
             })).then(() => {
-                ctx.reply(`Дякую ${ctx.message.text}, що знайшла в собі сили розповісти свою історію!`, Markup.removeKeyboard());
+                ctx.reply(`Дякую ${ctx.message.text}, що маєш в собі сили розповісти свою історію!`);
                 askForConsent(ctx);
             });
         } else {
-            clearTimeout(timers.get(ctx.chat.id));
-            timers.set(ctx.chat.id, setTimeout(() => ctx.reply("Дякую, що поділилася ❤️", DONE_TELLING_MARKUP), 60000 * 5))
-
             if (ctx.message.reply_to_message?.text === PROMPT_NEW_NAME_MSG && ctx.message.text) {
-                sendTypingStatus(ctx);
                 return getUser(ctx).then(user => notion.pages.update({
                     page_id: user.properties.personalPageId.rich_text[0].text.content,
                     properties: {
@@ -170,86 +203,55 @@ bot.on('message', (ctx) => {
                         }
                     }
                 })).then(() => ctx.reply("Ок, тепер зватиму тебе " + ctx.message.text, WANT_TO_TELL_MARKUP)))
-            }
-            if (ctx.message.text === WANT_TO_TELL_ACTION) {
-                sendTypingStatus(ctx);
-                getUser(ctx)
-                    .then(user => updateUser(user, {tellingTheStory: {checkbox: true}}))
-                    .then(() => ctx.reply("Розкажи мені! Пиши, говори, надсилай фото, записуй відео - я тебе уважно слухаю", Markup.removeKeyboard()))
-            } else if (ctx.message.text === DONE_TELLING_ACTION) {
-                sendTypingStatus(ctx)
-                getUser(ctx).then(user => updateUser(user, {tellingTheStory: {checkbox: false}}))
-                    .then(() => ctx.reply("Я завжди тут", WANT_TO_TELL_MARKUP))
             } else {
                 if (ctx.message.text) {
-                    return notion.blocks.children.append({
-                        block_id: user.properties.personalPageId.rich_text[0].text.content, children: [{
-                            paragraph: {
-                                rich_text: [
-                                    getDateTimeBlock(true),
-                                    {text: {content: ctx.message.text}}]
-                            }
-                        }]
-                    })
+                    return appendBlockAndReply(user, ctx, [{
+                        paragraph: {
+                            rich_text: [
+                                getDateTimeBlock(true),
+                                {text: {content: ctx.message.text}}]
+                        }
+                    }]);
                 } else if (ctx.message.voice) {
-                    return ctx.telegram.getFileLink(ctx.message.voice.file_id).then(url => notion.blocks.children.append({
-                        block_id: user.properties.personalPageId.rich_text[0].text.content, children: [{
-                            audio: {
-                                external: {url},
-                                caption: getFileCaption(ctx),
-                            }
-                        }]
-                    }))
+                    return ctx.telegram.getFileLink(ctx.message.voice.file_id).then(url => appendBlockAndReply(user, ctx, [{
+                        audio: {
+                            external: {url},
+                            caption: getFileCaption(ctx),
+                        }
+                    }]))
                 } else if (ctx.message.photo) {
-                    return ctx.telegram.getFileLink(ctx.message.photo[ctx.message.photo.length - 1].file_id).then(url => notion.blocks.children.append({
-                        block_id: user.properties.personalPageId.rich_text[0].text.content, children: [{
-                            image: {
-                                external: {url},
-                                caption: getFileCaption(ctx),
-                            },
-                        }]
-                    }))
+                    return ctx.telegram.getFileLink(ctx.message.photo[ctx.message.photo.length - 1].file_id).then(url => appendBlockAndReply(user, ctx, [{
+                        image: {
+                            external: {url},
+                            caption: getFileCaption(ctx),
+                        },
+                    }]));
                 } else if (ctx.message.video) {
-                    return ctx.telegram.getFileLink(ctx.message.video.file_id).then(url => notion.blocks.children.append({
-                        block_id: user.properties.personalPageId.rich_text[0].text.content, children: [{
-                            video: {
-                                external: {url},
-                                caption: getFileCaption(ctx),
-                            }
-                        }]
-                    }))
+                    return ctx.telegram.getFileLink(ctx.message.video.file_id).then(url => appendBlockAndReply(user, ctx, [{
+                        video: {
+                            external: {url},
+                            caption: getFileCaption(ctx),
+                        }
+                    }]));
                 } else if (ctx.message.document) {
-                    return ctx.telegram.getFileLink(ctx.message.document.file_id).then(url => notion.blocks.children.append({
-                        block_id: user.properties.personalPageId.rich_text[0].text.content, children: [{
-                            file: {
-                                external: {url},
-                                caption: getFileCaption(ctx),
-                            },
-                        }]
-                    }))
+                    return ctx.telegram.getFileLink(ctx.message.document.file_id).then(url => appendBlockAndReply(user, ctx, [{
+                        file: {
+                            external: {url},
+                            caption: getFileCaption(ctx),
+                        },
+                    }]))
                 } else {
                     ctx.reply('Вибач, я поки не розумію такі повідомлення')
                     bot.telegram.sendMessage(devId, "Повідомлення не підтримується:")
                         .then(() => bot.telegram.sendMessage(devId, JSON.stringify(ctx.message)))
                 }
             }
+
+            // clearTimeout(timers.get(ctx.chat.id));
+            // timers.set(ctx.chat.id, setTimeout(() => ctx.reply("Дякую, що поділилася ❤️", WANT_TO_ADD_MARKUP), 60000 * 5))
         }
     });
 })
-
-bot.action(REFUSE_ACTION, ctx => getUser(ctx).then(user => {
-    if (user.properties.consent.checkbox) {
-        sendTypingStatus(ctx);
-        return updateUser(user, {
-            consent: {checkbox: false}
-        }).then(() => {
-            ctx.reply('Ок, твої спогади залишаться у секреті.\nЯкщо захочеш, можеш дати згоду пізніше командою /consent', WANT_TO_TELL_MARKUP);
-            CURATORS.forEach(curator => bot.telegram.sendMessage(curator, `${user.properties.name.rich_text[0].text.content} ${user.properties.telegramId.title[0].text.content} відкликала згоду на використання матеріалів`))
-        })
-    } else {
-        ctx.reply("Не хвилюйся, твої спогади у секреті", WANT_TO_TELL_MARKUP)
-    }
-}))
 
 bot.launch(process.env.NODE_ENV === 'production' ? {
     webhook: {
