@@ -2,7 +2,7 @@ const {Telegraf, Markup} = require('telegraf');
 const {Client} = require("@notionhq/client");
 
 const DEV = 230373802;
-const CURATORS = process.env.CURATORS || [DEV];
+const CURATORS = JSON.parse(`[${process.env.CURATORS || DEV}]`);
 const TEST_BOT = '5120680530:AAGb1v6STa7StPE-m7v26gaCvc9oo3TjXqs'
 const bot = new Telegraf(process.env.BOT_TOKEN || TEST_BOT);
 const notion = new Client({auth: process.env.NOTION_TOKEN})
