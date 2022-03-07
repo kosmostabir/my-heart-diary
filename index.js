@@ -8,8 +8,8 @@ const bot = new Telegraf(process.env.BOT_TOKEN || TEST_BOT);
 const notion = new Client({auth: process.env.NOTION_TOKEN})
 const devId = 230373802;
 
-const USERS_TABLE_ID = 'e10d69e91bc54d208028f7c1a321f3f7';
-const MEMORIES_PARENT_PAGE_ID = 'a16a72e22c0a480b8cd54cd4d54d0386';
+const USERS_TABLE_ID = 'ada738a563ac4376956f47ef5ccb2294';
+const MEMORIES_PARENT_PAGE_ID = '68743b477c3241dd970ed99de6b0b737';
 
 const CONSENT_ACTION = 'consent';
 const CONSENT_COMMAND = 'consent';
