@@ -157,7 +157,7 @@ function appendBlockAndReply(user, ctx, children) {
     }).then(() => ctx.reply('Дякую, записав', Markup.inlineKeyboard([
         Markup.button.callback(WANT_TO_ADD_ACTION, WANT_TO_ADD_ACTION),
         Markup.button.callback(THANKS_FOR_LISTENING_ACTION, THANKS_FOR_LISTENING_ACTION),
-    ])))
+    ], {columns: 1})))
 }
 
 bot.on('message', (ctx) => {
