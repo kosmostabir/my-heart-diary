@@ -62,7 +62,7 @@ try {
         if (ctx.chat.last_name) {
             options.push(`${ctx.chat.first_name} ${ctx.chat.last_name}`)
         }
-        ctx.reply('Як тебе звати?', Markup.keyboard(options.map(name => Markup.button.text(name), {columns: 1})));
+        ctx.reply('Як тебе звати?', Markup.keyboard(options.filter(Boolean).map(name => Markup.button.text(name), {columns: 1})));
     }
 
     const promptEmail = ctx => ctx.reply(PROMPT_EMAIL_MESSAGE, FORCE_REPLY_MARKUP);
@@ -275,7 +275,8 @@ try {
                 } else {
                     return messageToNotionBlocks(ctx)
                         .then(children => notion.blocks.children.append({
-                            block_id: user.properties.personalPageId.rich_text[0].text.content, children
+                            block_id: user.properties.personalPageId.rich_text[0].text.content,
+                            children
                         }))
                         .then(() => ctx.reply('Дякую, записав', Markup.inlineKeyboard([Markup.button.callback(WANT_TO_ADD_ACTION, WANT_TO_ADD_ACTION), Markup.button.callback(THANKS_FOR_LISTENING_ACTION, THANKS_FOR_LISTENING_ACTION),], {columns: 1})))
                         .catch();
