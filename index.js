@@ -139,14 +139,14 @@ try {
                     }
                 })
             }
-        })
+        }).catch()
     })
     bot.command(FEEDBACK_COMMAND, ctx => ctx.reply(PROMPT_FEEDBACK, FORCE_REPLY_MARKUP));
     bot.command(MEMORIES_COMMAND, ctx => getUser(ctx).then(user => {
         if (user.properties.email.email) {
             ctx.reply(`Твій email ${user.properties.email.email}\n${user.properties.linkToPage.url}`, Markup.inlineKeyboard([Markup.button.callback(CHANGE_EMAIL_ACTION, CHANGE_EMAIL_ACTION)]));
         } else return promptEmail(ctx);
-    }))
+    }).catch())
     bot.command(ABOUT_COMMAND, ctx => ctx.reply('https://telegra.ph/Rozkazhi-men%D1%96-03-07-2'))
     bot.command(CONSENT_COMMAND, askForConsent);
     bot.command(RENAME_COMMAND, ctx => ctx.reply(PROMPT_NEW_NAME_MSG, FORCE_REPLY_MARKUP));
@@ -176,7 +176,7 @@ try {
                 ctx.telegram.answerCbQuery(ctx.update.callback_query.id);
                 ctx.reply('Ок, твої спогади залишаться у секреті.\nЯкщо захочеш, можеш дати згоду пізніше командою /consent', WANT_TO_TELL_MARKUP);
                 CURATORS.forEach(curator => bot.telegram.sendMessage(curator, `${user.properties.name.rich_text[0].text.content} ${user.properties.telegramId.title[0].text.content} відкликала згоду на використання матеріалів`))
-            })
+            }).catch()
         } else {
             ctx.telegram.answerCbQuery(ctx.update.callback_query.id);
             ctx.reply("Не хвилюйся, твої спогади у секреті", WANT_TO_TELL_MARKUP)
@@ -190,7 +190,7 @@ try {
             }).then(() => {
                 ctx.telegram.answerCbQuery(ctx.update.callback_query.id);
                 ctx.reply("Дякую за твій внесок!", WANT_TO_TELL_MARKUP)
-            })
+            }).catch()
         } else {
             ctx.telegram.answerCbQuery(ctx.update.callback_query.id);
             ctx.reply("Дякую, у мене вже є твоя згода", WANT_TO_TELL_MARKUP)
@@ -306,7 +306,7 @@ try {
                         .catch();
                 }
             }
-        });
+        }).catch();
     })
 
     bot.launch(process.env.NODE_ENV === 'production' ? {
@@ -324,6 +324,21 @@ try {
             database_id: USERS_TABLE_ID,
         }).then(({results}) => results.forEach(user => bot.telegram.sendMessage(user.properties.telegramId.title[0].text.content, message, {disable_notification}).catch()));
     }
+
+    // notion.databases.query({
+    //     database_id: USERS_TABLE_ID,
+    // }).then(({results}) => results.forEach(user => notion.blocks.children.list({
+    //     block_id: user.properties.personalPageId.rich_text[0].text.content
+    // }).then(page => {
+    //     if (!page.results.length) {
+    //         return bot.telegram.sendMessage(user.properties.telegramId.title[0].text.content, `Привіт, ${user.properties.name.rich_text[0].text.content}\n` +
+    //             'Бачу, що ти вже познайомився (-лась) зі мною, але нічого не пишеш\n' +
+    //             'Може все ж розкажеш, як ти? Де ти?').catch(e => {
+    //             console.log(user.properties.telegramId.title[0].text.content)
+    //             console.error(e);
+    //         })
+    //     } else return Promise.resolve()
+    // })))
 
     // messageAllUsers("Привіт! Пару годин тому мені було не дуже добре - вибач. Зараз мені вже краще і я готовий тебе слухати. А ще у мене оновився список команд:\n/about - про проект\n" +
     //     "/memories - мої спогади\n" +
