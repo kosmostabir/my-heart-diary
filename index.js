@@ -67,6 +67,7 @@ try {
             }
         }
     }).then(({results}) => {
+        console.log(results[0])
         if (!results[0]) {
             ctx.reply('Спочатку /start');
             return Promise.reject(`no user ${ctx.chat.id}`)
@@ -152,7 +153,7 @@ try {
         if (user.properties.email.email) {
             ctx.reply(`Твій email ${user.properties.email.email}\n${user.properties.linkToPage.url}`, Markup.inlineKeyboard([Markup.button.callback(CHANGE_EMAIL_ACTION, CHANGE_EMAIL_ACTION)]));
         } else return promptEmail(ctx);
-    }).catch(console.trace()))
+    }).catch(console.trace))
     bot.command(ABOUT_COMMAND, ctx => ctx.reply('https://telegra.ph/Rozkazhi-men%D1%96-03-07-2'))
     bot.command(CONSENT_COMMAND, askForConsent);
     bot.command(RENAME_COMMAND, ctx => ctx.reply(PROMPT_NEW_NAME_MSG, FORCE_REPLY_MARKUP));
