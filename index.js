@@ -73,7 +73,7 @@ try {
             return Promise.reject(`no user ${ctx.chat.id}`)
         }
         return results[0];
-    });
+    }).catch(console.trace);
 
     /**
      *
@@ -103,11 +103,14 @@ try {
         if (ctx.chat.last_name) {
             options.push(`${ctx.chat.first_name} ${ctx.chat.last_name}`)
         }
-        ctx.reply('Як тебе звати?', Markup.keyboard(options.filter(Boolean).map(name => Markup.button.text(name), {columns: 1})));
+        ctx.reply('Як тебе звати?', Markup.keyboard(options.filter(Boolean).map(name => Markup.button.text(name), {columns: 1})))
+            .catch(console.trace);
     }
 
-    const promptEmail = ctx => ctx.reply(PROMPT_EMAIL_MESSAGE, FORCE_REPLY_MARKUP);
+    const promptEmail = ctx => ctx.reply(PROMPT_EMAIL_MESSAGE, FORCE_REPLY_MARKUP)
+        .catch(console.trace);
     const askForConsent = ctx => ctx.reply('Дозволиш використовувати твої спогади у арт-проєктах?', Markup.inlineKeyboard([Markup.button.callback("Я даю згоду на обробку персональних даних\nзгідно Закону України 2297-VI\n«Про захист персональних даних»\nвід 13.02.2022 ст.6", CONSENT_ACTION), Markup.button.callback("Ні, вони лише для мене", REFUSE_ACTION),], {columns: 1}))
+        .catch(console.trace)
 
     function getDateTimeBlock(newLine = false) {
         return {
@@ -148,31 +151,31 @@ try {
             }
         }).catch(console.trace)
     })
-    bot.command(FEEDBACK_COMMAND, ctx => ctx.reply(PROMPT_FEEDBACK, FORCE_REPLY_MARKUP));
+    bot.command(FEEDBACK_COMMAND, ctx => ctx.reply(PROMPT_FEEDBACK, FORCE_REPLY_MARKUP).catch(console.trace));
     bot.command(MEMORIES_COMMAND, ctx => getUser(ctx).then(user => {
         if (user.properties.email.email) {
             ctx.reply(`Твій email ${user.properties.email.email}\n${user.properties.linkToPage.url}`, Markup.inlineKeyboard([Markup.button.callback(CHANGE_EMAIL_ACTION, CHANGE_EMAIL_ACTION)]));
         } else return promptEmail(ctx);
     }).catch(console.trace))
-    bot.command(ABOUT_COMMAND, ctx => ctx.reply('https://telegra.ph/Rozkazhi-men%D1%96-03-07-2'))
+    bot.command(ABOUT_COMMAND, ctx => ctx.reply('https://telegra.ph/Rozkazhi-men%D1%96-03-07-2').catch(console.trace))
     bot.command(CONSENT_COMMAND, askForConsent);
-    bot.command(RENAME_COMMAND, ctx => ctx.reply(PROMPT_NEW_NAME_MSG, FORCE_REPLY_MARKUP));
+    bot.command(RENAME_COMMAND, ctx => ctx.reply(PROMPT_NEW_NAME_MSG, FORCE_REPLY_MARKUP).catch(console.trace));
 
     bot.action(CHANGE_EMAIL_ACTION, ctx => {
-        ctx.telegram.answerCbQuery(ctx.update.callback_query.id);
+        ctx.telegram.answerCbQuery(ctx.update.callback_query.id).catch(console.trace);
         promptEmail(ctx)
     })
     bot.action(THANKS_FOR_LISTENING_ACTION, ctx => {
-        ctx.telegram.answerCbQuery(ctx.update.callback_query.id);
-        ctx.reply('Дякую, що не мовчиш ❤️', Markup.inlineKeyboard([Markup.button.callback(WANT_TO_TELL_ACTION, WANT_TO_TELL_ACTION)]))
+        ctx.telegram.answerCbQuery(ctx.update.callback_query.id).catch(console.trace);
+        ctx.reply('Дякую, що не мовчиш ❤️', Markup.inlineKeyboard([Markup.button.callback(WANT_TO_TELL_ACTION, WANT_TO_TELL_ACTION)])).catch(console.trace)
     })
     bot.action(WANT_TO_TELL_ACTION, ctx => {
-        ctx.telegram.answerCbQuery(ctx.update.callback_query.id);
-        ctx.reply('Я тебе уважно слухаю', Markup.removeKeyboard())
+        ctx.telegram.answerCbQuery(ctx.update.callback_query.id).catch(console.trace);
+        ctx.reply('Я тебе уважно слухаю', Markup.removeKeyboard()).catch(console.trace)
     })
     bot.action(WANT_TO_ADD_ACTION, ctx => {
-        ctx.telegram.answerCbQuery(ctx.update.callback_query.id);
-        ctx.reply('Звісно, розповідай, будь ласка', Markup.removeKeyboard())
+        ctx.telegram.answerCbQuery(ctx.update.callback_query.id).catch(console.trace);
+        ctx.reply('Звісно, розповідай, будь ласка', Markup.removeKeyboard()).catch(console.trace)
     })
     bot.action(REFUSE_ACTION, ctx => getUser(ctx).then(user => {
         if (user.properties.consent.checkbox) {
@@ -188,7 +191,7 @@ try {
             ctx.telegram.answerCbQuery(ctx.update.callback_query.id);
             ctx.reply("Не хвилюйся, твої спогади у секреті", WANT_TO_TELL_MARKUP)
         }
-    }).catch(console.trace()))
+    }).catch(console.trace))
     bot.action(CONSENT_ACTION, ctx => getUser(ctx).then(user => {
         if (!user.properties.consent.checkbox) {
             sendTypingStatus(ctx);
@@ -202,7 +205,7 @@ try {
             ctx.telegram.answerCbQuery(ctx.update.callback_query.id);
             ctx.reply("Дякую, у мене вже є твоя згода", WANT_TO_TELL_MARKUP)
         }
-    }).catch(console.trace()));
+    }).catch(console.trace));
 
     function messageToNotionBlocks(ctx) {
         if (ctx.message.text) {
@@ -236,9 +239,10 @@ try {
                 },
             }])
         } else {
-            ctx.reply('Вибач, я поки не розумію такі повідомлення')
+            ctx.reply('Вибач, я поки не розумію такі повідомлення').catch(console.trace)
             bot.telegram.sendMessage(DEV_ID, "Повідомлення не підтримується:")
-                .then(() => bot.telegram.sendMessage(DEV_ID, JSON.stringify(ctx.message)));
+                .then(() => bot.telegram.sendMessage(DEV_ID, JSON.stringify(ctx.message)))
+                .catch(console.trace);
         }
     }
 
