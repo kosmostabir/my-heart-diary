@@ -66,7 +66,13 @@ try {
                 equals: String(ctx.chat.id)
             }
         }
-    }).then(({results}) => results[0]);
+    }).then(({results}) => {
+        if (!results[0]) {
+            ctx.reply('Спочатку /start');
+            return Promise.reject(`no user ${ctx.chat.id}`)
+        }
+        return results[0];
+    });
 
     /**
      *
@@ -139,14 +145,14 @@ try {
                     }
                 })
             }
-        }).catch()
+        }).catch(console.log)
     })
     bot.command(FEEDBACK_COMMAND, ctx => ctx.reply(PROMPT_FEEDBACK, FORCE_REPLY_MARKUP));
     bot.command(MEMORIES_COMMAND, ctx => getUser(ctx).then(user => {
         if (user.properties.email.email) {
             ctx.reply(`Твій email ${user.properties.email.email}\n${user.properties.linkToPage.url}`, Markup.inlineKeyboard([Markup.button.callback(CHANGE_EMAIL_ACTION, CHANGE_EMAIL_ACTION)]));
         } else return promptEmail(ctx);
-    }).catch())
+    }).catch(console.log))
     bot.command(ABOUT_COMMAND, ctx => ctx.reply('https://telegra.ph/Rozkazhi-men%D1%96-03-07-2'))
     bot.command(CONSENT_COMMAND, askForConsent);
     bot.command(RENAME_COMMAND, ctx => ctx.reply(PROMPT_NEW_NAME_MSG, FORCE_REPLY_MARKUP));
@@ -176,12 +182,12 @@ try {
                 ctx.telegram.answerCbQuery(ctx.update.callback_query.id);
                 ctx.reply('Ок, твої спогади залишаться у секреті.\nЯкщо захочеш, можеш дати згоду пізніше командою /consent', WANT_TO_TELL_MARKUP);
                 CURATORS.forEach(curator => bot.telegram.sendMessage(curator, `${user.properties.name.rich_text[0].text.content} ${user.properties.telegramId.title[0].text.content} відкликала згоду на використання матеріалів`))
-            }).catch()
+            })
         } else {
             ctx.telegram.answerCbQuery(ctx.update.callback_query.id);
             ctx.reply("Не хвилюйся, твої спогади у секреті", WANT_TO_TELL_MARKUP)
         }
-    }))
+    }).catch(console.log))
     bot.action(CONSENT_ACTION, ctx => getUser(ctx).then(user => {
         if (!user.properties.consent.checkbox) {
             sendTypingStatus(ctx);
@@ -190,12 +196,12 @@ try {
             }).then(() => {
                 ctx.telegram.answerCbQuery(ctx.update.callback_query.id);
                 ctx.reply("Дякую за твій внесок!", WANT_TO_TELL_MARKUP)
-            }).catch()
+            })
         } else {
             ctx.telegram.answerCbQuery(ctx.update.callback_query.id);
             ctx.reply("Дякую, у мене вже є твоя згода", WANT_TO_TELL_MARKUP)
         }
-    }));
+    }).catch(console.log));
 
     function messageToNotionBlocks(ctx) {
         if (ctx.message.text) {
