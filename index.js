@@ -67,7 +67,6 @@ try {
             }
         }
     }).then(({results}) => {
-        console.log(results[0])
         if (!results[0]) {
             ctx.reply('Спочатку /start');
             return Promise.reject(`no user ${ctx.chat.id}`)
