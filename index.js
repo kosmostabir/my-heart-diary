@@ -145,14 +145,14 @@ try {
                     }
                 })
             }
-        }).catch(console.log)
+        }).catch(console.trace)
     })
     bot.command(FEEDBACK_COMMAND, ctx => ctx.reply(PROMPT_FEEDBACK, FORCE_REPLY_MARKUP));
     bot.command(MEMORIES_COMMAND, ctx => getUser(ctx).then(user => {
         if (user.properties.email.email) {
             ctx.reply(`Твій email ${user.properties.email.email}\n${user.properties.linkToPage.url}`, Markup.inlineKeyboard([Markup.button.callback(CHANGE_EMAIL_ACTION, CHANGE_EMAIL_ACTION)]));
         } else return promptEmail(ctx);
-    }).catch(console.log))
+    }).catch(console.trace()))
     bot.command(ABOUT_COMMAND, ctx => ctx.reply('https://telegra.ph/Rozkazhi-men%D1%96-03-07-2'))
     bot.command(CONSENT_COMMAND, askForConsent);
     bot.command(RENAME_COMMAND, ctx => ctx.reply(PROMPT_NEW_NAME_MSG, FORCE_REPLY_MARKUP));
@@ -187,7 +187,7 @@ try {
             ctx.telegram.answerCbQuery(ctx.update.callback_query.id);
             ctx.reply("Не хвилюйся, твої спогади у секреті", WANT_TO_TELL_MARKUP)
         }
-    }).catch(console.log))
+    }).catch(console.trace()))
     bot.action(CONSENT_ACTION, ctx => getUser(ctx).then(user => {
         if (!user.properties.consent.checkbox) {
             sendTypingStatus(ctx);
@@ -201,7 +201,7 @@ try {
             ctx.telegram.answerCbQuery(ctx.update.callback_query.id);
             ctx.reply("Дякую, у мене вже є твоя згода", WANT_TO_TELL_MARKUP)
         }
-    }).catch(console.log));
+    }).catch(console.trace()));
 
     function messageToNotionBlocks(ctx) {
         if (ctx.message.text) {
@@ -238,7 +238,6 @@ try {
             ctx.reply('Вибач, я поки не розумію такі повідомлення')
             bot.telegram.sendMessage(DEV_ID, "Повідомлення не підтримується:")
                 .then(() => bot.telegram.sendMessage(DEV_ID, JSON.stringify(ctx.message)));
-            return Promise.reject("TEST");
         }
     }
 
@@ -312,7 +311,7 @@ try {
                         .catch();
                 }
             }
-        }).catch();
+        }).catch(console.trace);
     })
 
     bot.launch(process.env.NODE_ENV === 'production' ? {
