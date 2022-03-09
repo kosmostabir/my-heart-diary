@@ -138,15 +138,15 @@ try {
                 bot.telegram.sendMessage(ctx.chat.id, 'Привіт, я існую задля збереження наших спільних спогадів, думок, переживань та рефлексій.')
                     .then(() => askUserName(ctx));
             } else {
-                ctx.reply('З поверненням, ' + results[0].properties.name.rich_text[0].text.content, WANT_TO_TELL_MARKUP);
-                return getUser(ctx).then(user => {
-                    if (!user.properties.consent.checkbox) {
-                        askForConsent(ctx)
-                    }
-                    if (!user.properties.email.email) {
-                        promptEmail(ctx)
-                    }
-                })
+                return ctx.reply('Привіт, ' + results[0].properties.name.rich_text[0].text.content, WANT_TO_TELL_MARKUP);
+                // return getUser(ctx).then(user => {
+                //     if (!user.properties.consent.checkbox) {
+                //         askForConsent(ctx)
+                //     }
+                //     if (!user.properties.email.email) {
+                //         promptEmail(ctx)
+                //     }
+                // })
             }
         }).catch(console.trace)
     })
@@ -156,7 +156,7 @@ try {
             ctx.reply(`Твій email ${user.properties.email.email}\n${user.properties.linkToPage.url}`, Markup.inlineKeyboard([Markup.button.callback(CHANGE_EMAIL_ACTION, CHANGE_EMAIL_ACTION)]));
         } else return promptEmail(ctx);
     }).catch(console.trace))
-    bot.command(ABOUT_COMMAND, ctx => ctx.reply('https://telegra.ph/Rozkazhi-men%D1%96-03-07-2').catch(console.trace))
+    bot.command(ABOUT_COMMAND, ctx => ctx.reply('https://youcantellme.notion.site/fc93ec4ebf154f7c821b845f72067694').catch(console.trace))
     bot.command(CONSENT_COMMAND, askForConsent);
     bot.command(RENAME_COMMAND, ctx => ctx.reply(PROMPT_NEW_NAME_MSG, FORCE_REPLY_MARKUP).catch(console.trace));
 
