@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node"
+  },
+  "ts-node": {
+    "esm": true
+  }
+}

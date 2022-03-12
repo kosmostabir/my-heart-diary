@@ -1,10 +1,10 @@
 export interface User {
     userId: number;
     name: string;
-    consent: boolean;
+    consent?: boolean;
 }
 
-export enum MessageType {
+export enum MemoryType {
     TEXT = 0,
     IMAGE = 1,
     AUDIO = 2,
@@ -12,9 +12,22 @@ export enum MessageType {
     FILE = 4
 }
 
-export interface Message {
+interface AbstractMessage {
+    memoryId: number;
     userId: User['userId'];
-    messageId: number;
-    text: string;
-    type: ''
+    timestamp: number;
+    type: MemoryType;
 }
+
+export interface TextMemory extends AbstractMessage {
+    text: string;
+    type: MemoryType.TEXT;
+}
+
+export interface DocumentMemory extends AbstractMessage {
+    text?: string;
+    type: Exclude<MemoryType, MemoryType.TEXT>;
+    file: string;
+}
+
+export type Memory = TextMemory | DocumentMemory;

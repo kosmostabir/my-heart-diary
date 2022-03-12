@@ -1,6 +1,24 @@
 import {Context, Markup, Telegraf} from 'telegraf';
-import {Pool} from 'pg';
-import {User} from "./models";
+import {Chat} from 'typegram';
+import {UserService} from "./user.service";
+import {ABOUT_PAGE, MEMORIES_PAGE} from "./constants";
+import {Update} from "typegram/update";
+import {CallbackQuery, Message} from "telegraf/typings/core/types/typegram";
+import {Memory, MemoryType} from "./models";
+import {MemoryService} from "./memory.service";
+
+const DEV_ID = 230373802;
+const CURATORS = JSON.parse(`[${process.env.CURATORS || DEV_ID}]`);
+
+const MESSAGE_TYPE_TO_KEY: Record<MemoryType, string> = {
+    [MemoryType.FILE]: 'document',
+    [MemoryType.AUDIO]: 'audio',
+    [MemoryType.TEXT]: 'text',
+    [MemoryType.IMAGE]: 'photo',
+    [MemoryType.VIDEO]: 'video'
+}
+
+const UNKNOWN_MESSAGE_ERROR = 'Unprocessable Message';
 
 const CONSENT_ACTION = 'consent';
 const CONSENT_COMMAND = 'consent';
@@ -9,111 +27,124 @@ const MEMORIES_COMMAND = 'memories';
 const FEEDBACK_COMMAND = 'feedback';
 const RENAME_COMMAND = 'rename';
 const REFUSE_ACTION = 'refuse';
-const CHANGE_EMAIL_ACTION = 'Змінити email';
 const THANKS_FOR_LISTENING_ACTION = 'Дякую, що вислухав';
 const PROMPT_FEEDBACK = 'Напиши нам:';
 const PROMPT_NEW_NAME_MSG = 'Нове ім\'я:';
-const PROMPT_EMAIL_MESSAGE = 'Якщо хочеш переглядати свої спогади, надай свій email у відповідь на це повідомлення.';
 const WANT_TO_TELL_ACTION = 'Хочу щось розповісти';
 const WANT_TO_ADD_ACTION = 'Хочу щось додати';
 
 const WANT_TO_TELL_MARKUP = Markup.inlineKeyboard([Markup.button.callback(WANT_TO_TELL_ACTION, WANT_TO_TELL_ACTION)]);
-const FORCE_REPLY_MARKUP = {reply_markup: {force_reply: true}};
+const FORCE_REPLY_MARKUP = {reply_markup: {force_reply: true}} as const;
 
+type BotContext = Context & { chat: Chat.PrivateChat };
+
+const HOST = process.env.HEROKU_URL;
+const TEST_BOT = '5120680530:AAGb1v6STa7StPE-m7v26gaCvc9oo3TjXqs'
 
 export class Bot {
-    private bot = new Telegraf(process.env.BOT_TOKEN);
-    private client = new Pool({
-        user: 'wuhrjfjtmudiqp',
-        host: 'ec2-176-34-222-188.eu-west-1.compute.amazonaws.com',
-        database: 'dbspnn7f3bak4t',
-        password: '3ff8acac992d3505dd7aa5417b983355f2570d42068972785e3d5a739945b968',
-        port: 5432,
-        ssl: {rejectUnauthorized: false}
-    });
+    private bot = new Telegraf<BotContext>(process.env.BOT_TOKEN || TEST_BOT);
 
-    constructor() {
-        this.bot.command('start', ctx => {
-            this.sendTypingStatus(ctx);
-
-            notion.databases.query({
-                database_id: USERS_TABLE_ID, filter: {
-                    property: 'telegramId', title: {
-                        equals: String(ctx.chat.id)
+    constructor(
+        private userService: UserService,
+        private memoriesService: MemoryService,
+    ) {
+        this.bot.command('start', (ctx) => this.catchError(Promise.all([
+                this.sendTypingStatus(ctx),
+                this.userService.getUser(ctx.chat.id).then(user => {
+                    if (user) {
+                        return ctx.reply('Привіт, ' + user.name, WANT_TO_TELL_MARKUP);
+                    } else {
+                        this.bot.telegram.sendMessage(ctx.chat.id, 'Привіт, я існую задля збереження наших спільних спогадів, думок, переживань та рефлексій.')
+                            .then(() => this.askUserName(ctx as BotContext));
                     }
-                }
-            }).then(({results}) => {
-                if (!results.length) {
-                    this.bot.telegram.sendMessage(ctx.chat.id, 'Привіт, я існую задля збереження наших спільних спогадів, думок, переживань та рефлексій.')
-                        .then(() => askUserName(ctx));
-                } else {
-                    return ctx.reply('Привіт, ' + results[0].properties.name.rich_text[0].text.content, WANT_TO_TELL_MARKUP);
-                    // return getUser(ctx).then(user => {
-                    //     if (!user.properties.consent.checkbox) {
-                    //         askForConsent(ctx)
-                    //     }
-                    //     if (!user.properties.email.email) {
-                    //         promptEmail(ctx)
-                    //     }
-                    // })
-                }
-            }).catch(console.trace);
-        });
-        this.bot.command(FEEDBACK_COMMAND, ctx => ctx.reply(PROMPT_FEEDBACK, FORCE_REPLY_MARKUP).catch(console.trace));
-        this.bot.command(MEMORIES_COMMAND, ctx => getUser(ctx).then(user => {
-            if (user.properties.email.email) {
-                ctx.reply(`Твій email ${user.properties.email.email}\n${user.properties.linkToPage.url}`, Markup.inlineKeyboard([Markup.button.callback(CHANGE_EMAIL_ACTION, CHANGE_EMAIL_ACTION)]));
-            } else return promptEmail(ctx);
-        }).catch(console.trace));
-        this.bot.command(ABOUT_COMMAND, ctx => ctx.reply('https://youcantellme.notion.site/fc93ec4ebf154f7c821b845f72067694').catch(console.trace));
-        this.bot.command(CONSENT_COMMAND, askForConsent);
-        this.bot.command(RENAME_COMMAND, ctx => ctx.reply(PROMPT_NEW_NAME_MSG, FORCE_REPLY_MARKUP).catch(console.trace));
+                }),
+            ])
+        ));
+        this.bot.command(FEEDBACK_COMMAND, ctx => this.catchError(ctx.reply(PROMPT_FEEDBACK, FORCE_REPLY_MARKUP)));
+        this.bot.command(MEMORIES_COMMAND, ctx => this.catchError(ctx.reply(`${HOST}/${MEMORIES_PAGE}/${ctx.chat.id}`)));
+        this.bot.command(ABOUT_COMMAND, ctx => this.catchError(ctx.reply(`${HOST}/${ABOUT_PAGE}`)));
+        this.bot.command(CONSENT_COMMAND, ctx => this.catchError(this.getUser(ctx).then(user => {
+            if (user.consent) {
+                return ctx.reply(`Дякую, ми вже маємо твою згоду. Більше тут /${ABOUT_PAGE}`)
+            } else {
+                return this.askForConsent(ctx)
+            }
+        })));
+        this.bot.command(RENAME_COMMAND, ctx => this.catchError(ctx.reply(PROMPT_NEW_NAME_MSG, FORCE_REPLY_MARKUP)));
 
-        this.bot.action(CHANGE_EMAIL_ACTION, ctx => {
-            ctx.telegram.answerCbQuery(ctx.update.callback_query.id).catch(console.trace);
-            promptEmail(ctx);
-        });
-        this.bot.action(THANKS_FOR_LISTENING_ACTION, ctx => {
-            ctx.telegram.answerCbQuery(ctx.update.callback_query.id).catch(console.trace);
-            ctx.reply('Дякую, що не мовчиш ❤️', Markup.inlineKeyboard([Markup.button.callback(WANT_TO_TELL_ACTION, WANT_TO_TELL_ACTION)])).catch(console.trace);
-        });
-        this.bot.action(WANT_TO_TELL_ACTION, ctx => {
-            ctx.telegram.answerCbQuery(ctx.update.callback_query.id).catch(console.trace);
-            ctx.reply('Я тебе уважно слухаю', Markup.removeKeyboard()).catch(console.trace);
-        });
-        this.bot.action(WANT_TO_ADD_ACTION, ctx => {
-            ctx.telegram.answerCbQuery(ctx.update.callback_query.id).catch(console.trace);
-            ctx.reply('Звісно, розповідай, будь ласка', Markup.removeKeyboard()).catch(console.trace);
-        });
-        this.bot.action(REFUSE_ACTION, ctx => getUser(ctx).then(user => {
-            if (user.properties.consent.checkbox) {
-                this.sendTypingStatus(ctx);
-                return updateUser(user, {
-                    consent: {checkbox: false}
-                }).then(() => {
-                    ctx.telegram.answerCbQuery(ctx.update.callback_query.id);
-                    ctx.reply('Ок, твої спогади залишаться у секреті.\nЯкщо захочеш, можеш дати згоду пізніше командою /consent', WANT_TO_TELL_MARKUP);
-                    CURATORS.forEach(curator => this.bot.telegram.sendMessage(curator, `${user.properties.name.rich_text[0].text.content} ${user.properties.telegramId.title[0].text.content} відкликала згоду на використання матеріалів`));
-                });
+        this.bot.action(/rename.+/, ctx => {
+            const name = (ctx.update.callback_query as CallbackQuery.DataCallbackQuery)?.data?.replace('rename', '')
+            return this.catchError(this.userService.createUser({
+                    userId: ctx.chat.id,
+                    name,
+                }).then(() => ctx.reply(`Радий знайомству, ${name}`)
+                    .then(() => this.askForConsent(ctx)))
+            );
+        })
+        this.bot.action(THANKS_FOR_LISTENING_ACTION, ctx => this.catchError(this.replyCallback(ctx,
+            'Дякую, що не мовчиш ❤️',
+            Markup.inlineKeyboard([Markup.button.callback(WANT_TO_TELL_ACTION, WANT_TO_TELL_ACTION)]))
+        ));
+        this.bot.action(WANT_TO_TELL_ACTION, ctx => this.catchError(this.replyCallback(ctx,
+            'Я тебе уважно слухаю',
+            Markup.removeKeyboard()
+        )));
+        this.bot.action(WANT_TO_ADD_ACTION, ctx => this.catchError(this.replyCallback(ctx,
+            'Звісно, розповідай, будь ласка',
+            Markup.removeKeyboard(),
+        )));
+        this.bot.action(REFUSE_ACTION, ctx => this.catchError(this.getUser(ctx).then(user => {
+            if (user.consent) {
+                return this.userService.updateUser({
+                    ...user,
+                    consent: true
+                }).then(() => this.replyCallback(ctx,
+                    'Ок, твої спогади залишаться у секреті.\nЯкщо захочеш, можеш дати згоду пізніше командою /consent',
+                    WANT_TO_TELL_MARKUP
+                )).then(() => CURATORS.forEach(curator =>
+                    this.bot.telegram.sendMessage(curator, `${user.name} ${user.userId} відкликав згоду на використання матеріалів`)))
             } else {
                 ctx.telegram.answerCbQuery(ctx.update.callback_query.id);
                 ctx.reply('Не хвилюйся, твої спогади у секреті', WANT_TO_TELL_MARKUP);
             }
-        }).catch(console.trace));
-        this.bot.action(CONSENT_ACTION, ctx => getUser(ctx).then(user => {
-            if (!user.properties.consent.checkbox) {
-                this.sendTypingStatus(ctx);
-                return updateUser(user, {
-                    consent: {checkbox: true}
-                }).then(() => {
-                    ctx.telegram.answerCbQuery(ctx.update.callback_query.id);
-                    ctx.reply('Дякую за твій внесок!', WANT_TO_TELL_MARKUP);
-                });
+        })));
+        this.bot.action(CONSENT_ACTION, ctx => this.catchError(this.getUser(ctx).then(user => {
+            if (!user.consent) {
+                return this.userService.updateUser({
+                    ...user,
+                    consent: true
+                }).then(() => this.replyCallback(ctx, 'Дякую за твій внесок!', WANT_TO_TELL_MARKUP));
             } else {
-                ctx.telegram.answerCbQuery(ctx.update.callback_query.id);
-                ctx.reply('Дякую, у мене вже є твоя згода', WANT_TO_TELL_MARKUP);
+                return this.replyCallback(ctx, 'Дякую, у мене вже є твоя згода', WANT_TO_TELL_MARKUP);
             }
-        }).catch(console.trace));
+        })));
+
+        this.bot.on("message", ctx => this.catchError(this.getUser(ctx, false).then(user => {
+            const message = ctx.message
+            if (user) {
+                return this.saveMessage(message, {
+                    timestamp: message.date,
+                    memoryId: message.message_id,
+                    userId: ctx.chat.id,
+                }).then(() => ctx.reply("Дякую, записав"))
+                    .catch(e => {
+                        if (e.reason === UNKNOWN_MESSAGE_ERROR) {
+                            return ctx.reply("Вибач, я поки не розумію такі повідомлення")
+                        }
+                        throw e;
+                    })
+            } else {
+                if (isTextMessage(message)) {
+                    return this.userService.createUser({
+                        userId: ctx.chat.id,
+                        name: message.text,
+                    }).then(() => ctx.reply(`Радий знайомству, ${message.text}`))
+                        .then(() => this.askForConsent(ctx))
+                } else {
+                    return this.askUserName(ctx as BotContext)
+                }
+            }
+        })))
     }
 
     launch() {
@@ -124,12 +155,121 @@ export class Bot {
         } : {});
     }
 
-    private getUser(ctx: Context) {
-        return this.client.query<User>('SELECT * from users where userId = $1', [ctx.chat.id])
-            .then(result => result.rows[0])
+    stop(sigint: string) {
+        this.bot.stop(sigint)
     }
+
+    private getUser(ctx: Context, promptRegister = true) {
+        return this.userService.getUser(ctx.chat.id).then(user => {
+            if (!user && promptRegister) {
+                return this.askUserName(ctx as BotContext).then(() => Promise.reject())
+            }
+            return user;
+        })
+    }
+
+    private askForConsent(ctx) {
+        return ctx.reply(`Дозволиш використовувати твої спогади у арт-проєктах?\nПерсональні дані будуть оброблені згідно Закону України 2297-VI «Про захист персональних даних» від 13.02.2022 ст.6.\nБільше тут /${ABOUT_PAGE}`, Markup.inlineKeyboard([Markup.button.callback("Звісно!", CONSENT_ACTION), Markup.button.callback("Ні, вони лише для мене", REFUSE_ACTION),], {columns: 1}));
+    }
+
+    private catchError(promise: Promise<unknown>) {
+        return promise.catch(this.logError)
+    }
+
+    private logError = e => console.trace(e);
 
     private sendTypingStatus(ctx) {
-
+        return Promise.resolve()
     }
+
+    private askUserName(ctx: BotContext) {
+        try {
+            const options = [ctx.chat.username];
+            if (ctx.chat.username !== ctx.chat.first_name) {
+                options.push(ctx.chat.first_name)
+            }
+            if (ctx.chat.last_name) {
+                options.push(`${ctx.chat.first_name} ${ctx.chat.last_name}`)
+            }
+            return this.catchError(ctx.reply('Як тебе звати?',
+                Markup.inlineKeyboard(options.filter(Boolean).map(name => Markup.button.callback(name, RENAME_COMMAND + name), {columns: 1})))
+            )
+        } catch (e) {
+            this.logError(e)
+        }
+    }
+
+    private replyCallback(ctx: Context<Update.CallbackQueryUpdate>, ...[text, extra]: Parameters<Context['reply']>) {
+        return Promise.all([
+            ctx.telegram.answerCbQuery(ctx.update.callback_query.id),
+            this.bot.telegram.sendMessage(ctx.chat.id, text, extra),
+        ]);
+    }
+
+    private saveMessage(message: Message, memoryBase: Omit<Memory, 'type'>) {
+        if (isPhotoMessage(message)) {
+            return this.memoriesService.addMemory({
+                ...memoryBase,
+                type: MemoryType.IMAGE,
+                file: message.photo[message.photo.length - 1].file_id,
+                text: message.caption
+            })
+        }
+        if (isAudioMessage(message)) {
+            return this.memoriesService.addMemory({
+                ...memoryBase,
+                type: MemoryType.AUDIO,
+                file: message.audio.file_id,
+                text: message.caption
+            })
+        }
+        if (isVideoMessage(message)) {
+            return this.memoriesService.addMemory({
+                ...memoryBase,
+                type: MemoryType.VIDEO,
+                file: message.video.file_id,
+                text: message.caption
+            })
+        }
+        if (isFileMessage(message)) {
+            return this.memoriesService.addMemory({
+                ...memoryBase,
+                type: MemoryType.VIDEO,
+                file: message.document.file_id,
+                text: message.caption
+            })
+        }
+        if (isTextMessage(message)) {
+            return this.memoriesService.addMemory({
+                ...memoryBase,
+                type: MemoryType.TEXT,
+                text: message.text
+            })
+        }
+        return Promise.reject(UNKNOWN_MESSAGE_ERROR)
+    }
+}
+
+function hasKey(message: any, key: string): boolean {
+    return message[key];
+}
+
+function isTextMessage(message: Message): message is Message.TextMessage {
+    return hasKey(message, MESSAGE_TYPE_TO_KEY[MemoryType.TEXT])
+}
+
+function isAudioMessage(message: Message): message is Message.AudioMessage {
+    return hasKey(message, MESSAGE_TYPE_TO_KEY[MemoryType.AUDIO])
+}
+
+function isPhotoMessage(message: Message): message is Message.PhotoMessage {
+    return hasKey(message, MESSAGE_TYPE_TO_KEY[MemoryType.IMAGE])
+}
+
+function isVideoMessage(message: Message): message is Message.VideoMessage {
+    return hasKey(message, MESSAGE_TYPE_TO_KEY[MemoryType.VIDEO])
+}
+
+function isFileMessage(message: Message): message is Message.DocumentMessage {
+    return hasKey(message, MESSAGE_TYPE_TO_KEY[MemoryType.FILE])
 }
