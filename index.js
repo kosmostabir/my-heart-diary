@@ -67,10 +67,10 @@ try {
             }
         }
     }).then(({results}) => {
-        if (!results[0]) {
-            ctx.reply('Спочатку /start');
-            return Promise.reject(`no user ${ctx.chat.id}`)
-        }
+        // if (!results[0]) {
+        //     ctx.reply('Спочатку /start');
+        //     return Promise.reject(`no user ${ctx.chat.id}`)
+        // }
         return results[0];
     }).catch(console.trace);
 
