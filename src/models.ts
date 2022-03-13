@@ -9,7 +9,9 @@ export enum MemoryType {
     IMAGE = 1,
     AUDIO = 2,
     VIDEO = 3,
-    FILE = 4
+    FILE = 4,
+    VOICE = 5,
+    VIDEO_NOTE = 6,
 }
 
 interface AbstractMessage {
@@ -28,6 +30,7 @@ export interface DocumentMemory extends AbstractMessage {
     text?: string;
     type: Exclude<MemoryType, MemoryType.TEXT>;
     file: string;
+    url?: string;
 }
 
 export type Memory = TextMemory | DocumentMemory;

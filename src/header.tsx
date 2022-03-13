@@ -1,5 +1,6 @@
 import React from "react";
 import {Link} from "react-router-dom";
+import TelegramLoginButton from 'react-telegram-login';
 
 export default function Header() {
     return (
@@ -8,11 +9,9 @@ export default function Header() {
                 <Link to="/memories">Memories</Link>
                 <Link to="/about">About</Link>
             </nav>
-            <div id="login">
-                <script async src="https://telegram.org/js/telegram-widget.js?16"
-                        data-telegram-login="DPro_test_bot"
-                        data-size="large" data-onauth="onTelegramAuth(user)"/>
-            </div>
+            <TelegramLoginButton
+                dataOnauth={authData => document.cookie = "authToken=" + encodeURIComponent(JSON.stringify(authData)) + ";path=/"}
+                botName="DPro_test_bot" buttonSize='medium'/>
         </div>
     );
 }

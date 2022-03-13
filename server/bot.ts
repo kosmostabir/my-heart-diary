@@ -15,7 +15,9 @@ const MESSAGE_TYPE_TO_KEY: Record<MemoryType, string> = {
     [MemoryType.AUDIO]: 'audio',
     [MemoryType.TEXT]: 'text',
     [MemoryType.IMAGE]: 'photo',
-    [MemoryType.VIDEO]: 'video'
+    [MemoryType.VIDEO]: 'video',
+    [MemoryType.VOICE]: 'voice',
+    [MemoryType.VIDEO_NOTE]: 'video_note',
 }
 
 const UNKNOWN_MESSAGE_ERROR = 'Unprocessable Message';
@@ -42,7 +44,8 @@ const HOST = process.env.HEROKU_URL;
 const TEST_BOT = '5120680530:AAGb1v6STa7StPE-m7v26gaCvc9oo3TjXqs'
 
 export class Bot {
-    private bot = new Telegraf<BotContext>(process.env.BOT_TOKEN || TEST_BOT);
+    public readonly token = process.env.BOT_TOKEN || TEST_BOT
+    private bot = new Telegraf<BotContext>(this.token);
 
     constructor(
         private userService: UserService,
@@ -128,8 +131,10 @@ export class Bot {
                     userId: ctx.chat.id,
                 }).then(() => ctx.reply("Дякую, записав"))
                     .catch(e => {
-                        if (e.reason === UNKNOWN_MESSAGE_ERROR) {
+                        if (e === UNKNOWN_MESSAGE_ERROR) {
                             return ctx.reply("Вибач, я поки не розумію такі повідомлення")
+                                .then(() => ctx.telegram.sendMessage(DEV_ID, e))
+                                .then(() => ctx.telegram.sendMessage(DEV_ID, JSON.stringify(ctx.message)));
                         }
                         throw e;
                     })
@@ -145,6 +150,15 @@ export class Bot {
                 }
             }
         })))
+    }
+
+    public enrichWithUrls(memories: Memory[]) {
+        return Promise.all(memories.map(memory => memory.type === MemoryType.TEXT
+            ? Promise.resolve(memory)
+            : this.bot.telegram.getFileLink(memory.fileId).then(url => ({
+                ...memory,
+                url
+            }))))
     }
 
     launch() {
@@ -211,15 +225,29 @@ export class Bot {
             return this.memoriesService.addMemory({
                 ...memoryBase,
                 type: MemoryType.IMAGE,
-                file: message.photo[message.photo.length - 1].file_id,
+                fileId: message.photo[message.photo.length - 1].file_id,
                 text: message.caption
+            })
+        }
+        if (isVoiceMessage(message)) {
+            return this.memoriesService.addMemory({
+                ...memoryBase,
+                type: MemoryType.VOICE,
+                fileId: message.voice.file_id,
+            })
+        }
+        if (isVideoNoteMessage(message)) {
+            return this.memoriesService.addMemory({
+                ...memoryBase,
+                fileId: message.video_note.file_id,
+                type: MemoryType.VIDEO_NOTE
             })
         }
         if (isAudioMessage(message)) {
             return this.memoriesService.addMemory({
                 ...memoryBase,
                 type: MemoryType.AUDIO,
-                file: message.audio.file_id,
+                fileId: message.audio.file_id,
                 text: message.caption
             })
         }
@@ -227,7 +255,7 @@ export class Bot {
             return this.memoriesService.addMemory({
                 ...memoryBase,
                 type: MemoryType.VIDEO,
-                file: message.video.file_id,
+                fileId: message.video.file_id,
                 text: message.caption
             })
         }
@@ -235,7 +263,7 @@ export class Bot {
             return this.memoriesService.addMemory({
                 ...memoryBase,
                 type: MemoryType.VIDEO,
-                file: message.document.file_id,
+                fileId: message.document.file_id,
                 text: message.caption
             })
         }
@@ -260,6 +288,14 @@ function isTextMessage(message: Message): message is Message.TextMessage {
 
 function isAudioMessage(message: Message): message is Message.AudioMessage {
     return hasKey(message, MESSAGE_TYPE_TO_KEY[MemoryType.AUDIO])
+}
+
+function isVideoNoteMessage(message: Message): message is Message.VideoNoteMessage {
+    return hasKey(message, MESSAGE_TYPE_TO_KEY[MemoryType.VIDEO_NOTE])
+}
+
+function isVoiceMessage(message: Message): message is Message.VoiceMessage {
+    return hasKey(message, MESSAGE_TYPE_TO_KEY[MemoryType.VOICE])
 }
 
 function isPhotoMessage(message: Message): message is Message.PhotoMessage {

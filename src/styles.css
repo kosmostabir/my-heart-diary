@@ -1,19 +1,28 @@
 body {
-  font-size: 20px;
+    font-size: 20px;
+    margin: 0;
+    font-family: sans-serif;
 }
 
-.users {
-  list-style-type: none;
-  margin: 0;
-  padding: 0;
+#header {
+    display: flex;
+    justify-content: space-between;
+    background: saddlebrown;
+    padding: 20px;
 }
 
-.user {
-  padding: 2rem;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+.error {
+    padding: 20px;
+    text-align: center;
 }
 
-.user > div {
-  margin-top: 1rem;
-  color: #ccc;
+#header nav a {
+    color: white;
+    text-transform: uppercase;
+    padding: 20px;
+    text-decoration: none;
+}
+
+.memory {
+
 }
