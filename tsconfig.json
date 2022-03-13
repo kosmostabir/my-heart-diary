@@ -1,7 +1,9 @@
 {
   "compilerOptions": {
     "module": "CommonJS",
-    "moduleResolution": "Node"
+    "moduleResolution": "Node",
+    "jsx": "react",
+    "allowSyntheticDefaultImports": true
   },
   "ts-node": {
     "esm": true
