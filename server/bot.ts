@@ -159,6 +159,10 @@ export class Bot {
         return this.bot.telegram.sendMessage(...params);
     }
 
+    public handleUpdate(...params: Parameters<Telegraf['handleUpdate']>) {
+        return this.bot.handleUpdate(...params);
+    }
+
     public enrichWithUrls(memories: Memory[]) {
         return Promise.all(memories.map(memory => memory.type === MemoryType.TEXT
             ? Promise.resolve(memory)
@@ -169,13 +173,11 @@ export class Bot {
     }
 
     launch() {
-        return this.bot.launch(process.env.NODE_ENV === 'production' ? {
-            webhook: {
-                domain: process.env.HEROKU_URL,
-                hookPath: this.token,
-                port: Number(process.env.PORT),
-            }
-        } : {}).catch((e) => console.trace(e));
+        if (process.env.NODE_ENV === 'production') {
+            return this.bot.telegram.setWebhook(`${process.env.HEROKU_URL}:${process.env.PORT}/${this.token}`)
+        } else {
+            return this.bot.launch();
+        }
     }
 
     stop(sigint: string) {

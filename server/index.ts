@@ -93,6 +93,9 @@ new Pool({
         }
     }
 
+    app.post('/' + bot.token, (req, res) => {
+        return bot.handleUpdate(req.body, res)
+    });
 
     app.get("/api/memories",
         (req, res) => {
