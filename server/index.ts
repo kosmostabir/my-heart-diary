@@ -97,32 +97,31 @@ new Pool({
         return bot.handleUpdate(req.body, res)
     });
 
-    app.get("/api/memories",
-        (req, res) => {
-            try {
-                const telegramId = authenticate(req.header('Cookie'));
-                if (telegramId) {
-                    memoriesService.getMemories(telegramId)
-                        .then(memories => {
-                            if (!memories.length) {
-                                return userService.getUser(telegramId).then(user => {
-                                    if (user) {
-                                        res.sendStatus(204);
-                                    } else {
-                                        res.sendStatus(404);
-                                    }
-                                })
-                            } else {
-                                return bot.enrichWithUrls(memories).then(memories => res.status(200).json(memories))
-                            }
-                        })
-                } else {
-                    res.sendStatus(403);
-                }
-            } catch (e) {
+    app.get("/api/memories", (req, res) => {
+        try {
+            const telegramId = authenticate(req.header('Cookie'));
+            if (telegramId) {
+                memoriesService.getMemories(telegramId)
+                    .then(memories => {
+                        if (!memories.length) {
+                            return userService.getUser(telegramId).then(user => {
+                                if (user) {
+                                    res.sendStatus(204);
+                                } else {
+                                    res.sendStatus(404);
+                                }
+                            })
+                        } else {
+                            return bot.enrichWithUrls(memories).then(memories => res.status(200).json(memories))
+                        }
+                    })
+            } else {
                 res.sendStatus(403);
             }
-        })
+        } catch (e) {
+            res.sendStatus(403);
+        }
+    })
 
 // add middlewares
     app.use(express.static(path.join(__dirname, "..", "build")));

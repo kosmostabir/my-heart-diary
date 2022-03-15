@@ -41,6 +41,7 @@ body {
 .error {
     padding: 20px;
     text-align: center;
+    flex: auto;
 }
 
 #header nav {
