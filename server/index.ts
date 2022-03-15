@@ -93,8 +93,6 @@ new Pool({
         }
     }
 
-    console.log('/' + bot.token);
-
     app.post('/' + bot.token, (req, res) => {
         console.log(res.body);
         return bot.handleUpdate(req.body, res)

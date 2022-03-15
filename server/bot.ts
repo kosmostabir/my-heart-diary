@@ -174,7 +174,6 @@ export class Bot {
 
     launch() {
         if (process.env.NODE_ENV === 'production') {
-            console.log(`${process.env.HEROKU_URL}/${this.token}`);
             return this.bot.telegram.setWebhook(`${process.env.HEROKU_URL}/${this.token}`);
         } else {
             return this.bot.launch();
