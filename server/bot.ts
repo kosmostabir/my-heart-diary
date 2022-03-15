@@ -170,9 +170,9 @@ export class Bot {
 
     launch() {
         return this.bot.launch(process.env.NODE_ENV === 'production' ? {
-            webhook: {
-                domain: process.env.HEROKU_URL, port: Number(process.env.PORT)
-            }
+            // webhook: {
+            //     domain: process.env.HEROKU_URL, port: Number(process.env.PORT)
+            // }
         } : {}).catch((e) => console.trace(e));
     }
 
