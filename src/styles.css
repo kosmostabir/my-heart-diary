@@ -4,11 +4,38 @@ body {
     font-family: sans-serif;
 }
 
+.tg-small {
+    display: none;
+}
+
+#root {
+    display: flex;
+    height: 100vh;
+    flex-direction: column;
+}
+
 #header {
     display: flex;
     justify-content: space-between;
     background: saddlebrown;
     padding: 20px;
+    overflow: auto;
+}
+
+@media (max-width: 1000px) {
+    #header {
+        order: 10;
+        font-size: 10px;
+        padding: 10px;
+    }
+
+    .tg-small {
+        display: flex;
+    }
+
+    .tg-medium {
+        display: none !important;
+    }
 }
 
 .error {
@@ -16,13 +43,108 @@ body {
     text-align: center;
 }
 
+#header nav {
+    display: flex;
+    flex: auto;
+    justify-content: space-around;
+    gap: 10px;
+}
+
+#header nav > div {
+    display: flex;
+    align-items: center;
+}
+
 #header nav a {
     color: white;
     text-transform: uppercase;
-    padding: 20px;
+    padding: 5px;
     text-decoration: none;
+    display: flex;
+    align-items: center;
+}
+
+.day-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 10px;
+}
+
+.day {
+    text-align: center;
+    position: sticky;
+    top: 3px;
+    font-size: 15px;
+    z-index: 50;
+}
+
+.day span {
+    background: lightgray;
+    padding: 5px 10px;
+    border-radius: 15px;
+    color: gray;
+}
+
+.time {
+    text-align: right;
+    font-size: .5em;
+}
+
+.memories {
+    display: flex;
+    flex: auto;
+    flex-direction: column;
+    min-height: 0;
+    overflow: auto;
 }
 
 .memory {
+    background: aliceblue;
+    border-radius: 10px;
+    color: dimgray;
+    padding: 10px;
+    display: flex;
+    max-width: 100%;
+    flex-direction: column;
+}
 
+.memory audio {
+    align-self: center;
+}
+
+.memory img {
+    max-height: 300px;
+    object-fit: contain;
+    width: fit-content;
+    align-self: center;
+}
+
+.memory video {
+    max-height: 300px;
+    min-width: 300px;
+    width: fit-content;
+    align-self: center;
+}
+
+.expandable {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.expanded {
+    position: absolute;
+    width: 100vw;
+    height: 100vh;
+    top: 0;
+    left: 0;
+    z-index: 100;
+    backdrop-filter: blur(5px);
+}
+
+.expanded img {
+    max-width: 100vw;
+    max-height: 100vh;
 }

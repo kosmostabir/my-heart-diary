@@ -64,7 +64,7 @@ export class Bot {
             ])
         ));
         this.bot.command(FEEDBACK_COMMAND, ctx => this.catchError(ctx.reply(PROMPT_FEEDBACK, FORCE_REPLY_MARKUP)));
-        this.bot.command(MEMORIES_COMMAND, ctx => this.catchError(ctx.reply(`${HOST}/${MEMORIES_PAGE}/${ctx.chat.id}`)));
+        this.bot.command(MEMORIES_COMMAND, ctx => this.catchError(ctx.reply(`${HOST}/${MEMORIES_PAGE}`)));
         this.bot.command(ABOUT_COMMAND, ctx => this.catchError(ctx.reply(`${HOST}/${ABOUT_PAGE}`)));
         this.bot.command(CONSENT_COMMAND, ctx => this.catchError(this.getUser(ctx).then(user => {
             if (user.consent) {
@@ -125,8 +125,11 @@ export class Bot {
         this.bot.on("message", ctx => this.catchError(this.getUser(ctx, false).then(user => {
             const message = ctx.message
             if (user) {
+                const date = (message as Message.CommonMessage).forward_from?.id === ctx.chat.id
+                    ? (message as Message.CommonMessage).forward_date
+                    : message.date;
                 return this.saveMessage(message, {
-                    timestamp: message.date,
+                    timestamp: date,
                     memoryId: message.message_id,
                     userId: ctx.chat.id,
                 }).then(() => ctx.reply("Дякую, записав"))
@@ -150,6 +153,10 @@ export class Bot {
                 }
             }
         })))
+    }
+
+    public sendMessage(...params: Parameters<Telegraf['telegram']['sendMessage']>) {
+        return this.bot.telegram.sendMessage(...params);
     }
 
     public enrichWithUrls(memories: Memory[]) {
