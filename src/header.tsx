@@ -20,6 +20,12 @@ export default function Header() {
                         location.reload();
                     }}
                     botName="DPro_test_bot" buttonSize='small'/>
+                <button onClick={() => {
+                    document.cookie = "authToken=; Max-Age=0; path=/;";
+                    location.reload();
+                }}>
+                    Logout
+                </button>
             </nav>
         </div>
     );
