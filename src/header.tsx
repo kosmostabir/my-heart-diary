@@ -16,7 +16,7 @@ export default function Header() {
                 {role && <a href="/send">Написати</a>}
                 <TelegramLoginButton
                     dataOnauth={authData => document.cookie = "authToken=" + encodeURIComponent(JSON.stringify(authData)) + ";path=/"}
-                    botName="DPro_test_bot" buttonSize='small'/>
+                    botName="you_can_tell_me_bot" buttonSize='small'/>
             </nav>
         </div>
     );
