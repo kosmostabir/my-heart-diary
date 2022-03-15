@@ -5,6 +5,11 @@ export class UserService {
     constructor(private client: PoolClient) {
     }
 
+    public getUsers() {
+        return this.client.query<User>('select * from users')
+            .then(result => result.rows)
+    }
+
     public getUser(userId: User['userId']) {
         return this.client.query<User>('SELECT * from users where "userId" = $1', [userId])
             .then(result => result.rows[0])

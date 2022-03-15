@@ -12,14 +12,14 @@ export class MemoryService {
 
     public addMemory({
                          userId,
-                         memoryId,
+                         id,
                          text,
                          fileId,
                          type,
                          timestamp
                      }: Memory & Partial<Pick<DocumentMemory, 'fileId'>>) {
-        return this.client.query(`INSERT into memories ("userId", "memoryId", text, type, "fileId", timestamp)
+        return this.client.query(`INSERT into memories ("userId", id, text, type, "fileId", timestamp)
                                   VALUES ($1, $2, $3, $4, $5, $6)`,
-            [userId, memoryId, text, type, fileId, timestamp])
+            [userId, id, text, type, fileId, timestamp])
     }
 }

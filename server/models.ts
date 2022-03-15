@@ -15,7 +15,7 @@ export enum MemoryType {
 }
 
 interface AbstractMessage {
-    memoryId: number;
+    id: number;
     userId: User['userId'];
     timestamp: number;
     type: MemoryType;
@@ -34,3 +34,5 @@ export interface DocumentMemory extends AbstractMessage {
 }
 
 export type Memory = TextMemory | DocumentMemory;
+
+export type Feedback = Memory;

@@ -6,6 +6,7 @@ import {Update} from "typegram/update";
 import {CallbackQuery, Message} from "telegraf/typings/core/types/typegram";
 import {Memory, MemoryType} from "./models";
 import {MemoryService} from "./memory.service";
+import {FeedbackService} from "./feedback.service";
 
 const DEV_ID = 230373802;
 const CURATORS = JSON.parse(`[${process.env.CURATORS || DEV_ID}]`);
@@ -50,6 +51,7 @@ export class Bot {
     constructor(
         private userService: UserService,
         private memoriesService: MemoryService,
+        private feedbackService: FeedbackService,
     ) {
         this.bot.command('start', (ctx) => this.catchError(Promise.all([
                 this.sendTypingStatus(ctx),
@@ -125,22 +127,26 @@ export class Bot {
         this.bot.on("message", ctx => this.catchError(this.getUser(ctx, false).then(user => {
             const message = ctx.message
             if (user) {
-                const date = (message as Message.CommonMessage).forward_from?.id === ctx.chat.id
-                    ? (message as Message.CommonMessage).forward_date
-                    : message.date;
-                return this.saveMessage(message, {
-                    timestamp: date,
-                    memoryId: message.message_id,
-                    userId: ctx.chat.id,
-                }).then(() => ctx.reply("Дякую, записав"))
-                    .catch(e => {
-                        if (e === UNKNOWN_MESSAGE_ERROR) {
-                            return ctx.reply("Вибач, я поки не розумію такі повідомлення")
-                                .then(() => ctx.telegram.sendMessage(DEV_ID, e))
-                                .then(() => ctx.telegram.sendMessage(DEV_ID, JSON.stringify(ctx.message)));
-                        }
-                        throw e;
-                    })
+                if (this.tryHandleFeedbackMessage(message, ctx)) {
+
+                } else {
+                    const date = (message as Message.CommonMessage).forward_from?.id === ctx.chat.id
+                        ? (message as Message.CommonMessage).forward_date
+                        : message.date;
+                    return this.memoriesService.addMemory(this.prepareMessage(message, {
+                        timestamp: date,
+                        id: message.message_id,
+                        userId: ctx.chat.id,
+                    })).then(() => ctx.reply("Дякую, записав"))
+                        .catch(e => {
+                            if (e === UNKNOWN_MESSAGE_ERROR) {
+                                return ctx.reply("Вибач, я поки не розумію такі повідомлення")
+                                    .then(() => ctx.telegram.sendMessage(DEV_ID, e))
+                                    .then(() => ctx.telegram.sendMessage(DEV_ID, JSON.stringify(ctx.message)));
+                            }
+                            throw e;
+                        })
+                }
             } else {
                 if (isTextMessage(message)) {
                     return this.userService.createUser({
@@ -231,61 +237,83 @@ export class Bot {
         ]);
     }
 
-    private saveMessage(message: Message, memoryBase: Omit<Memory, 'type'>) {
+    private prepareMessage(message: Message, memoryBase: Omit<Memory, 'type'>) {
         if (isPhotoMessage(message)) {
-            return this.memoriesService.addMemory({
+            return {
                 ...memoryBase,
                 type: MemoryType.IMAGE,
                 fileId: message.photo[message.photo.length - 1].file_id,
                 text: message.caption
-            })
+            } as const;
         }
         if (isVoiceMessage(message)) {
-            return this.memoriesService.addMemory({
+            return {
                 ...memoryBase,
                 type: MemoryType.VOICE,
                 fileId: message.voice.file_id,
-            })
+            } as const;
         }
         if (isVideoNoteMessage(message)) {
-            return this.memoriesService.addMemory({
+            return {
                 ...memoryBase,
                 fileId: message.video_note.file_id,
                 type: MemoryType.VIDEO_NOTE
-            })
+            } as const;
         }
         if (isAudioMessage(message)) {
-            return this.memoriesService.addMemory({
+            return {
                 ...memoryBase,
                 type: MemoryType.AUDIO,
                 fileId: message.audio.file_id,
                 text: message.caption
-            })
+            } as const;
         }
         if (isVideoMessage(message)) {
-            return this.memoriesService.addMemory({
+            return {
                 ...memoryBase,
                 type: MemoryType.VIDEO,
                 fileId: message.video.file_id,
                 text: message.caption
-            })
+            } as const;
         }
         if (isFileMessage(message)) {
-            return this.memoriesService.addMemory({
+            return {
                 ...memoryBase,
                 type: MemoryType.VIDEO,
                 fileId: message.document.file_id,
                 text: message.caption
-            })
+            } as const;
         }
         if (isTextMessage(message)) {
-            return this.memoriesService.addMemory({
+            return {
                 ...memoryBase,
                 type: MemoryType.TEXT,
                 text: message.text
-            })
+            } as const;
         }
-        return Promise.reject(UNKNOWN_MESSAGE_ERROR)
+        throw Error(UNKNOWN_MESSAGE_ERROR);
+    }
+
+    private tryHandleFeedbackMessage(message: Message, ctx: Context) {
+        const msg = message as Message.CommonMessage;
+        try {
+            if ((msg.reply_to_message as Message.TextMessage)?.text === PROMPT_FEEDBACK) {
+                if (CURATORS.includes(message.from.id)) {
+                    this.userService.getUsers().then(users => {
+                        users.forEach(user => this.bot.telegram.sendMessage(user.userId, (message as Message.TextMessage).text.replace("$user", user.name)).catch())
+                    })
+                } else {
+                    this.feedbackService.addFeedback(this.prepareMessage(message, {
+                        userId: ctx.chat.id,
+                        timestamp: message.date,
+                        id: message.message_id
+                    })).then(() => ctx.reply("Дякую за зворотній зв'язок!")).catch()
+                }
+                return true
+            }
+        } catch (e) {
+
+        }
     }
 }
 

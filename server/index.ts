@@ -3,6 +3,7 @@ import {UserService} from "./user.service";
 import {Bot} from "./bot";
 import {Pool} from "pg";
 import {MemoryService} from "./memory.service";
+import {FeedbackService} from "./feedback.service";
 
 // const {Client: Notion} = require("@notionhq/client");
 
@@ -19,7 +20,8 @@ new Pool({
     err && console.trace(err);
     const userService = new UserService(client);
     const memoriesService = new MemoryService(client);
-    const bot = new Bot(userService, memoriesService);
+    const feedbackService = new FeedbackService(client);
+    const bot = new Bot(userService, memoriesService, feedbackService);
 
     // const notion = new Notion({auth: process.env.NOTION_TOKEN})
 
