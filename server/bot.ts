@@ -173,7 +173,7 @@ export class Bot {
             webhook: {
                 domain: process.env.HEROKU_URL, port: Number(process.env.PORT)
             }
-        } : {});
+        } : {}).catch((e) => console.trace(e));
     }
 
     stop(sigint: string) {
