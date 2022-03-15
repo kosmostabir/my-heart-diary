@@ -81,12 +81,16 @@ new Pool({
     // )
 
     function authenticate(authDataCookie) {
-        const authData = JSON.parse(decodeURIComponent(authDataCookie.match(new RegExp('authToken=([^;]+)'))[1]));
-        const hash = authData.hash;
-        delete authData.hash;
-        const dataCheckString = Object.keys(authData).sort().map(key => `${key}=${authData[key]}`).join("\n");
-        const signature = createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
-        return signature === hash && authData.id;
+        try {
+            const authData = JSON.parse(decodeURIComponent(authDataCookie.match(new RegExp('authToken=([^;]+)'))[1]));
+            const hash = authData.hash;
+            delete authData.hash;
+            const dataCheckString = Object.keys(authData).sort().map(key => `${key}=${authData[key]}`).join("\n");
+            const signature = createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
+            return signature === hash && authData.id;
+        } catch (e) {
+            return null
+        }
     }
 
 
