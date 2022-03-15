@@ -19,7 +19,7 @@ export default function Header() {
                         document.cookie = "authToken=" + encodeURIComponent(JSON.stringify(authData)) + ";path=/";
                         location.reload();
                     }}
-                    botName="DPro_test_bot" buttonSize='small'/>
+                    botName="you_can_tell_me_bot" buttonSize='small'/>
                 <button onClick={() => {
                     document.cookie = "authToken=; Max-Age=0; path=/;";
                     location.reload();
