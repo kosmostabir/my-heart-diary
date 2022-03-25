@@ -10,6 +10,18 @@ export class UserService {
             .then(result => result.rows)
     }
 
+    public getConsentedUsersInfo() {
+        return this.client.query<User & { lastMemory: number, totalMemories: number }>(`select u."userId",
+                                                                                               u.name,
+                                                                                               count('*')     totalMemories,
+                                                                                               max(timestamp) lastMemory
+                                                                                        from memories
+                                                                                                 right join users u on u."userId" = memories."userId"
+                                                                                        where consent is true
+                                                                                        group by u."userId"`)
+            .then(result => result.rows)
+    }
+
     public getUser(userId: User['userId']) {
         return this.client.query<User>('SELECT * from users where "userId" = $1', [userId])
             .then(result => result.rows[0])

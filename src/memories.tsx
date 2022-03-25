@@ -1,9 +1,9 @@
 import React from "react";
 import "./styles.css";
-import axios from "axios";
 import {Memory, MemoryType} from "./models";
 import Header from "./header";
 import {ImageComponent} from "./img";
+import {getMemories} from "./api";
 
 export default class Memories extends React.Component {
     state = {
@@ -12,7 +12,7 @@ export default class Memories extends React.Component {
     };
 
     componentDidMount() {
-        axios("/api/memories")
+        getMemories()
             .then(response => this.setState({memories: response.data || []}))
             .catch(e => {
                 if (e.response?.status === 403) {

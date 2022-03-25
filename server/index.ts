@@ -103,7 +103,7 @@ new Pool({
         try {
             const telegramId = authenticate(req.header('Cookie'));
             if (telegramId) {
-                memoriesService.getMemories(telegramId)
+                memoriesService.getMemories(Number(req.query.user ? CURATORS.includes(telegramId) ? req.query.user : telegramId : telegramId))
                     .then(memories => {
                         if (!memories.length) {
                             return userService.getUser(telegramId).then(user => {
@@ -117,6 +117,20 @@ new Pool({
                             return bot.enrichWithUrls(memories).then(memories => res.status(200).json(memories))
                         }
                     })
+            } else {
+                res.sendStatus(403);
+            }
+        } catch (e) {
+            res.sendStatus(403);
+        }
+    })
+
+    app.get("/api/consented-users", (req, res) => {
+        try {
+            const telegramId = authenticate(req.header('Cookie'));
+            if (telegramId && CURATORS.includes(telegramId)) {
+                userService.getConsentedUsersInfo()
+                    .then(users => res.status(200).json(users))
             } else {
                 res.sendStatus(403);
             }

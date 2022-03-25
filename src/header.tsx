@@ -13,7 +13,9 @@ export default function Header() {
             <nav>
                 <Link to="/memories">Спогади</Link>
                 <a href="https://youcantellme.notion.site/fc93ec4ebf154f7c821b845f72067694">Про проект</a>
-                {role && <a href="/send">Написати</a>}
+                {role && <>
+                    <Link to="/users">Користувачі</Link>
+                </>}
                 <TelegramLoginButton
                     dataOnauth={authData => {
                         document.cookie = "authToken=" + encodeURIComponent(JSON.stringify(authData)) + ";path=/";

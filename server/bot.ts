@@ -42,10 +42,9 @@ const FORCE_REPLY_MARKUP = {reply_markup: {force_reply: true}} as const;
 type BotContext = Context & { chat: Chat.PrivateChat };
 
 const HOST = process.env.HEROKU_URL;
-const TEST_BOT = '5120680530:AAGb1v6STa7StPE-m7v26gaCvc9oo3TjXqs'
 
 export class Bot {
-    public readonly token = process.env.BOT_TOKEN || TEST_BOT
+    public readonly token = process.env.BOT_TOKEN;
     private bot = new Telegraf<BotContext>(this.token);
 
     constructor(
