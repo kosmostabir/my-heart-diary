@@ -18,7 +18,7 @@ new Pool({
     ssl: {rejectUnauthorized: false}
 }).connect((err, client, done) => {
     err && console.trace(err);
-    const userService = new UserService(client);
+    const userService: UserService = new UserService(client);
     const memoriesService = new MemoryService(client);
     const feedbackService = new FeedbackService(client);
     const bot = new Bot(userService, memoriesService, feedbackService);
@@ -103,7 +103,15 @@ new Pool({
         try {
             const telegramId = authenticate(req.header('Cookie'));
             if (telegramId) {
-                memoriesService.getMemories(Number(req.query.user ? CURATORS.includes(telegramId) ? req.query.user : telegramId : telegramId))
+                (req.query.user && CURATORS.includes(telegramId)
+                        ? userService.getUser(Number(req.query.user)).then(user => {
+                            if (!user.consent) {
+                                throw Error(`${user.name} ${user.userId} did not provide consent`)
+                            }
+                            return user.userId
+                        })
+                        : Promise.resolve(telegramId)
+                ).then(userId => memoriesService.getMemories(userId)
                     .then(memories => {
                         if (!memories.length) {
                             return userService.getUser(telegramId).then(user => {
@@ -117,7 +125,7 @@ new Pool({
                             return bot.enrichWithUrls(memories).then(memories => res.status(200).json(memories))
                         }
                     })
-                    .catch(e => console.trace(e))
+                ).catch(e => console.trace(e))
             } else {
                 res.sendStatus(403);
             }
