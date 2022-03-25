@@ -2,7 +2,8 @@ import axios from "axios";
 import {Memory, User} from "./models";
 
 export function getMemories() {
-    return axios.get<Memory[]>("/api/memories?user=" + new URLSearchParams(window.location.search).get('user'))
+    const queryUser = new URLSearchParams(window.location.search).get('user');
+    return axios.get<Memory[]>('/api/memories' + queryUser ? '?user=' + queryUser : '')
 }
 
 export function getConsentedUsers() {
