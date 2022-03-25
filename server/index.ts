@@ -117,6 +117,7 @@ new Pool({
                             return bot.enrichWithUrls(memories).then(memories => res.status(200).json(memories))
                         }
                     })
+                    .catch(e => console.trace(e))
             } else {
                 res.sendStatus(403);
             }
@@ -131,6 +132,7 @@ new Pool({
             if (telegramId && CURATORS.includes(telegramId)) {
                 userService.getConsentedUsersInfo()
                     .then(users => res.status(200).json(users))
+                    .catch(e => console.trace(e))
             } else {
                 res.sendStatus(403);
             }
