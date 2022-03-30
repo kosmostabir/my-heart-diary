@@ -2,8 +2,9 @@
   "name": "you-can-tell-me",
   "version": "1.0.0",
   "description": "",
-  "main": "index.ts",
+  "main": "server/index.ts",
   "scripts": {
+    "start-server": "nodemon -e ts --watch server .env --exec \"tsc --incremental && node server/index.js\"",
     "start-client": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",

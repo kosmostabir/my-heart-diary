@@ -2,6 +2,7 @@
   "compilerOptions": {
     "module": "CommonJS",
     "moduleResolution": "Node",
+    "target": "ES2015",
     "jsx": "react",
     "allowSyntheticDefaultImports": true
   },
