@@ -5,6 +5,8 @@ import Header from "./header";
 import {ImageComponent} from "./img";
 import {getMemories} from "./api";
 
+const fileTooBigErrorText = <div className='error'>Не вдалося отримати посилання на файл, можливо він завеликий</div>;
+
 export default class Memories extends React.Component {
     state = {
         memories: null,
@@ -82,9 +84,9 @@ function renderMemory(memory: Memory) {
             case MemoryType.VOICE:
             case MemoryType.AUDIO:
                 return <>
-                    <audio controls>
+                    {memory.url ? <audio controls>
                         <source src={memory.url}/>
-                    </audio>
+                    </audio> : fileTooBigErrorText}
                     {memory.text}
                 </>
             case MemoryType.IMAGE:
@@ -97,14 +99,15 @@ function renderMemory(memory: Memory) {
             case MemoryType.VIDEO_NOTE:
             case MemoryType.VIDEO:
                 return <>
-                    <video controls>
+                    {memory.url ? <video controls>
                         <source src={memory.url}/>
-                    </video>
+                    </video> : fileTooBigErrorText
+                    }
                     {memory.text}
                 </>
             case MemoryType.FILE:
                 return <>
-                    <a href={memory.url} download/>
+                    {memory.url ? <a href={memory.url} download/> : fileTooBigErrorText}
                     {memory.text}
                 </>
         }

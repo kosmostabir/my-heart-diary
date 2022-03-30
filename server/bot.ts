@@ -174,7 +174,7 @@ export class Bot {
             : this.bot.telegram.getFileLink(memory.fileId).then(url => ({
                 ...memory,
                 url
-            }))))
+            })).catch(() => memory)))
     }
 
     launch() {
