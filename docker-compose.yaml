@@ -1,0 +1,22 @@
+version: "3.8"
+
+services:
+
+  app-node:
+    build:
+      context: .
+      dockerfile: node.dockerfile
+    env_file: .env
+    container_name: app-node
+    command: nodemon -e ts --watch server .env --exec "tsc --incremental && node server/index.js"
+    volumes:
+      - .:/home/node/app
+    ports:
+      - "80"
+      - "443"
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge

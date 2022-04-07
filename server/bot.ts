@@ -7,6 +7,7 @@ import {CallbackQuery, Message} from "telegraf/typings/core/types/typegram";
 import {Memory, MemoryType} from "./models";
 import {MemoryService} from "./memory.service";
 import {FeedbackService} from "./feedback.service";
+import {I18nService} from "./I18n.service";
 
 const DEV_ID = 230373802;
 const CURATORS = JSON.parse(`[${process.env.CURATORS || DEV_ID}]`);
@@ -51,15 +52,26 @@ export class Bot {
         private userService: UserService,
         private memoriesService: MemoryService,
         private feedbackService: FeedbackService,
+        private i18nService: I18nService,
     ) {
         this.bot.command('start', (ctx) => this.catchError(Promise.all([
                 this.sendTypingStatus(ctx),
                 this.userService.getUser(ctx.chat.id).then(user => {
                     if (user) {
-                        return ctx.reply('Привіт, ' + user.name, WANT_TO_TELL_MARKUP);
+                        return ctx.reply(
+                            this.i18nService.translate(
+                                'bot.hello',
+                                {
+                                    name: user.name
+                                }
+                            ),
+                            WANT_TO_TELL_MARKUP
+                        );
                     } else {
-                        this.bot.telegram.sendMessage(ctx.chat.id, 'Привіт, я існую задля збереження наших спільних спогадів, думок, переживань та рефлексій.')
-                            .then(() => this.askUserName(ctx as BotContext));
+                        this.bot.telegram.sendMessage(
+                            ctx.chat.id,
+                            'Привіт, я існую задля збереження наших спільних спогадів, думок, переживань та рефлексій.'
+                        ).then(() => this.askUserName(ctx as BotContext));
                     }
                 }),
             ])
@@ -136,7 +148,7 @@ export class Bot {
                         timestamp: date,
                         id: message.message_id,
                         userId: ctx.chat.id,
-                    })).then(() => ctx.reply("Дякую, записав"))
+                    })).then(() => ctx.reply(this.i18nService.translate('memory.add.success')))
                         .catch(e => {
                             if (e === UNKNOWN_MESSAGE_ERROR) {
                                 return ctx.reply("Вибач, я поки не розумію такі повідомлення")
@@ -221,8 +233,17 @@ export class Bot {
             if (ctx.chat.last_name) {
                 options.push(`${ctx.chat.first_name} ${ctx.chat.last_name}`)
             }
-            return this.catchError(ctx.reply('Як тебе звати?',
-                Markup.inlineKeyboard(options.filter(Boolean).map(name => Markup.button.callback(name, RENAME_COMMAND + name), {columns: 1})))
+            return this.catchError(
+                ctx.reply(
+                    'Як тебе звати?',
+                    Markup.inlineKeyboard(
+                        options.filter(Boolean)
+                            .map(
+                                name => Markup.button.callback(name, RENAME_COMMAND + name),
+                                {columns: 1}
+                        )
+                    )
+                )
             )
         } catch (e) {
             this.logError(e)

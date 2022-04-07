@@ -1,0 +1,4 @@
+{
+  "bot.hello": "Hello, {{name}}",
+  "memory.add.success": "Thanks, saved"
+}
