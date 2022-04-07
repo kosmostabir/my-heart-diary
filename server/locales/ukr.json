@@ -1,4 +1,35 @@
 {
-  "bot.hello": "Привіт, {{name}}",
+  "bot.start.exist.user": "Привіт, {{name}}",
+  "bot.start.desc": "Привіт, я існую задля збереження наших спільних спогадів, думок, переживань та рефлексій.",
+
+  "bot.button.feedback": "Напиши нам:",
+  "bot.button.thanks.for.listening": "Дякую, що вислухав",
+  "bot.button.want.to.tell": "Хочу щось розповісти",
+  "bot.button.consent": "consent",
+  "bot.button.refuse": "refuse",
+  "bot.button.want.add": "Хочу щось додати",
+
+  "bot.set.name.success": "Радий знайомству, {{name}}",
+
+  "bot.rename": "Нове ім'я:",
+
+  "bot.answer.thanks.for.listening": "Дякую, що не мовчиш ❤️",
+  "bot.answer.want.tell": "Я тебе уважно слухаю️",
+  "bot.answer.want.add": "Звісно, розповідай, будь ласка",
+  "bot.answer.refuse.for.user": "Ок, твої спогади залишаться у секреті.\nЯкщо захочеш, можеш дати згоду пізніше командою /{{command}}",
+  "bot.answer.refuse.for.curator": "{{name}} {{userId}} відкликав згоду на використання матеріалів",
+  "bot.answer.dont.refuse": "Не хвилюйся, твої спогади у секреті",
+  "bot.answer.consent.add": "Дякую за твій внесок!",
+  "bot.answer.consent.exist": "Дякую, ми вже маємо твою згоду. Більше тут /{{command}}",
+  "bot.answer.dont.understand": "Вибач, я поки не розумію такі повідомлення",
+
+  "bot.consent.agree": "Звісно!",
+  "bot.consent.disagree": "Ні, вони лише для мене",
+
+  "bot.what.you.name": "Як тебе звати?",
+  "bot.feedback.thank": "Дякую за зворотній зв'язок!",
+
+  "bot.consent.text": "Дозволиш використовувати твої спогади у арт-проєктах?\nПерсональні дані будуть оброблені згідно Закону України 2297-VI «Про захист персональних даних» від 13.02.2022 ст.6.\nБільше тут /{{command}}",
+
   "memory.add.success": "Дякую, записав"
 }
