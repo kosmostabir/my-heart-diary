@@ -7,6 +7,7 @@ import {CallbackQuery, Message} from "telegraf/typings/core/types/typegram";
 import {Memory, MemoryType} from "./models";
 import {MemoryService} from "./memory.service";
 import {FeedbackService} from "./feedback.service";
+import {I18nService} from "./I18n.service";
 
 const DEV_ID = 230373802;
 const CURATORS = JSON.parse(`[${process.env.CURATORS || DEV_ID}]`);
@@ -23,20 +24,12 @@ const MESSAGE_TYPE_TO_KEY: Record<MemoryType, string> = {
 
 const UNKNOWN_MESSAGE_ERROR = 'Unprocessable Message';
 
-const CONSENT_ACTION = 'consent';
 const CONSENT_COMMAND = 'consent';
 const ABOUT_COMMAND = 'about';
 const MEMORIES_COMMAND = 'memories';
 const FEEDBACK_COMMAND = 'feedback';
 const RENAME_COMMAND = 'rename';
-const REFUSE_ACTION = 'refuse';
-const THANKS_FOR_LISTENING_ACTION = 'Дякую, що вислухав';
-const PROMPT_FEEDBACK = 'Напиши нам:';
-const PROMPT_NEW_NAME_MSG = 'Нове ім\'я:';
-const WANT_TO_TELL_ACTION = 'Хочу щось розповісти';
-const WANT_TO_ADD_ACTION = 'Хочу щось додати';
 
-const WANT_TO_TELL_MARKUP = Markup.inlineKeyboard([Markup.button.callback(WANT_TO_TELL_ACTION, WANT_TO_TELL_ACTION)]);
 const FORCE_REPLY_MARKUP = {reply_markup: {force_reply: true}} as const;
 
 type BotContext = Context & { chat: Chat.PrivateChat };
@@ -44,82 +37,106 @@ type BotContext = Context & { chat: Chat.PrivateChat };
 const HOST = process.env.HEROKU_URL;
 
 export class Bot {
+
     public readonly token = process.env.BOT_TOKEN;
+
     private bot = new Telegraf<BotContext>(this.token);
 
     constructor(
         private userService: UserService,
         private memoriesService: MemoryService,
         private feedbackService: FeedbackService,
+        private i18n: I18nService,
     ) {
         this.bot.command('start', (ctx) => this.catchError(Promise.all([
                 this.sendTypingStatus(ctx),
                 this.userService.getUser(ctx.chat.id).then(user => {
                     if (user) {
-                        return ctx.reply('Привіт, ' + user.name, WANT_TO_TELL_MARKUP);
+                        return ctx.reply(
+                            this.i18n.t(
+                                'bot.start.exist.user',
+                                {
+                                    "name": user.name
+                                }
+                            ),
+                            this.getWantToTellMarkUp()
+                        );
                     } else {
-                        this.bot.telegram.sendMessage(ctx.chat.id, 'Привіт, я існую задля збереження наших спільних спогадів, думок, переживань та рефлексій.')
-                            .then(() => this.askUserName(ctx as BotContext));
+                        this.bot.telegram.sendMessage(
+                            ctx.chat.id,
+                            this.i18n.t('bot.start.desc'),
+                        ).then(() => this.askUserName(ctx as BotContext));
                     }
                 }),
-            ])
-        ));
-        this.bot.command(FEEDBACK_COMMAND, ctx => this.catchError(ctx.reply(PROMPT_FEEDBACK, FORCE_REPLY_MARKUP)));
+            ])));
+        this.bot.command(FEEDBACK_COMMAND, ctx => this.catchError(ctx.reply(this.i18n.t('bot.button.feedback'), FORCE_REPLY_MARKUP)));
         this.bot.command(MEMORIES_COMMAND, ctx => this.catchError(ctx.reply(`${HOST}/${MEMORIES_PAGE}`)));
         this.bot.command(ABOUT_COMMAND, ctx => this.catchError(ctx.reply(`${HOST}/${ABOUT_PAGE}`)));
         this.bot.command(CONSENT_COMMAND, ctx => this.catchError(this.getUser(ctx).then(user => {
             if (user.consent) {
-                return ctx.reply(`Дякую, ми вже маємо твою згоду. Більше тут /${ABOUT_PAGE}`)
+                return ctx.reply(this.i18n.t('bot.answer.consent.exist', {"command": ABOUT_COMMAND}))
             } else {
                 return this.askForConsent(ctx)
             }
         })));
-        this.bot.command(RENAME_COMMAND, ctx => this.catchError(ctx.reply(PROMPT_NEW_NAME_MSG, FORCE_REPLY_MARKUP)));
+
+        this.bot.command(RENAME_COMMAND,ctx => this.catchError(ctx.reply(this.i18n.t('bot.rename'), FORCE_REPLY_MARKUP)));
 
         this.bot.action(/rename.+/, ctx => {
             const name = (ctx.update.callback_query as CallbackQuery.DataCallbackQuery)?.data?.replace('rename', '')
             return this.catchError(this.userService.createUser({
                     userId: ctx.chat.id,
                     name,
-                }).then(() => ctx.reply(`Радий знайомству, ${name}`)
+                }).then(() => ctx.reply(this.i18n.t('bot.set.name.success', {"name": name}))
                     .then(() => this.askForConsent(ctx)))
             );
         })
-        this.bot.action(THANKS_FOR_LISTENING_ACTION, ctx => this.catchError(this.replyCallback(ctx,
-            'Дякую, що не мовчиш ❤️',
-            Markup.inlineKeyboard([Markup.button.callback(WANT_TO_TELL_ACTION, WANT_TO_TELL_ACTION)]))
+
+        this.bot.action(this.i18n.t('bot.button.thanks.for.listening'), ctx => this.catchError(this.replyCallback(ctx,
+            this.i18n.t('bot.answer.thanks.for.listening'),
+            Markup.inlineKeyboard([Markup.button.callback(this.i18n.t('bot.button.want.to.tell'), this.i18n.t('bot.button.want.to.tell'))]))
         ));
-        this.bot.action(WANT_TO_TELL_ACTION, ctx => this.catchError(this.replyCallback(ctx,
-            'Я тебе уважно слухаю',
+
+        this.bot.action(this.i18n.t('bot.button.want.to.tell'), ctx => this.catchError(this.replyCallback(ctx,
+            this.i18n.t('bot.answer.want.tell'),
             Markup.removeKeyboard()
         )));
-        this.bot.action(WANT_TO_ADD_ACTION, ctx => this.catchError(this.replyCallback(ctx,
-            'Звісно, розповідай, будь ласка',
+
+        this.bot.action(this.i18n.t('bot.button.want.add'), ctx => this.catchError(this.replyCallback(ctx,
+            this.i18n.t('bot.answer.want.add'),
             Markup.removeKeyboard(),
         )));
-        this.bot.action(REFUSE_ACTION, ctx => this.catchError(this.getUser(ctx).then(user => {
+
+        this.bot.action(this.i18n.t('bot.button.refuse'), ctx => this.catchError(this.getUser(ctx).then(user => {
             if (user.consent) {
                 return this.userService.updateUser({
                     ...user,
                     consent: true
                 }).then(() => this.replyCallback(ctx,
-                    'Ок, твої спогади залишаться у секреті.\nЯкщо захочеш, можеш дати згоду пізніше командою /consent',
-                    WANT_TO_TELL_MARKUP
+                    this.i18n.t('bot.answer.refuse.for.user', {"command": CONSENT_COMMAND}),
+                    this.getWantToTellMarkUp()
                 )).then(() => CURATORS.forEach(curator =>
-                    this.bot.telegram.sendMessage(curator, `${user.name} ${user.userId} відкликав згоду на використання матеріалів`)))
+                    this.bot.telegram.sendMessage(
+                        curator,
+                        this.i18n.t(
+                            'bot.answer.refuse.for.curator',
+                            {"name": user.name, "userId": user.userId}
+                        )
+                    )))
             } else {
                 ctx.telegram.answerCbQuery(ctx.update.callback_query.id);
-                ctx.reply('Не хвилюйся, твої спогади у секреті', WANT_TO_TELL_MARKUP);
+                ctx.reply(this.i18n.t('bot.answer.dont.refuse'), this.getWantToTellMarkUp());
             }
         })));
-        this.bot.action(CONSENT_ACTION, ctx => this.catchError(this.getUser(ctx).then(user => {
+
+        this.bot.action(this.i18n.t('bot.button.consent'), ctx => this.catchError(this.getUser(ctx).then(user => {
             if (!user.consent) {
                 return this.userService.updateUser({
                     ...user,
                     consent: true
-                }).then(() => this.replyCallback(ctx, 'Дякую за твій внесок!', WANT_TO_TELL_MARKUP));
+                }).then(() => this.replyCallback(ctx, this.i18n.t('bot.answer.consent.add'), this.getWantToTellMarkUp()));
             } else {
-                return this.replyCallback(ctx, 'Дякую, у мене вже є твоя згода', WANT_TO_TELL_MARKUP);
+                return this.replyCallback(ctx, this.i18n.t('bot.answer.consent.exist'), this.getWantToTellMarkUp());
             }
         })));
 
@@ -136,10 +153,10 @@ export class Bot {
                         timestamp: date,
                         id: message.message_id,
                         userId: ctx.chat.id,
-                    })).then(() => ctx.reply("Дякую, записав"))
+                    })).then(() => ctx.reply(this.i18n.t('memory.add.success')))
                         .catch(e => {
                             if (e === UNKNOWN_MESSAGE_ERROR) {
-                                return ctx.reply("Вибач, я поки не розумію такі повідомлення")
+                                return ctx.reply(this.i18n.t('bot.answer.dont.understand'))
                                     .then(() => ctx.telegram.sendMessage(DEV_ID, e))
                                     .then(() => ctx.telegram.sendMessage(DEV_ID, JSON.stringify(ctx.message)));
                             }
@@ -151,7 +168,7 @@ export class Bot {
                     return this.userService.createUser({
                         userId: ctx.chat.id,
                         name: message.text,
-                    }).then(() => ctx.reply(`Радий знайомству, ${message.text}`))
+                    }).then(() => ctx.reply(this.i18n.t('bot.set.name.success', {"name": message.text})))
                         .then(() => this.askForConsent(ctx))
                 } else {
                     return this.askUserName(ctx as BotContext)
@@ -198,8 +215,30 @@ export class Bot {
         })
     }
 
+    private getWantToTellMarkUp() {
+        return Markup.inlineKeyboard(
+            [
+                Markup.button.callback(
+                    this.i18n.t('bot.button.want.to.tell'),
+                    this.i18n.t('bot.button.want.to.tell')
+                )
+            ]
+        );
+    }
+
     private askForConsent(ctx) {
-        return ctx.reply(`Дозволиш використовувати твої спогади у арт-проєктах?\nПерсональні дані будуть оброблені згідно Закону України 2297-VI «Про захист персональних даних» від 13.02.2022 ст.6.\nБільше тут /${ABOUT_PAGE}`, Markup.inlineKeyboard([Markup.button.callback("Звісно!", CONSENT_ACTION), Markup.button.callback("Ні, вони лише для мене", REFUSE_ACTION),], {columns: 1}));
+        return ctx.reply(
+            this.i18n.t('bot.consent.text', {"command": ABOUT_PAGE}),
+            Markup.inlineKeyboard(
+                [
+                    Markup.button.callback(this.i18n.t('bot.consent.agree'), this.i18n.t('bot.button.consent')),
+                    Markup.button.callback(this.i18n.t('bot.consent.disagree'), this.i18n.t('bot.button.refuse')),
+                ],
+                {
+                    columns: 1
+                }
+            )
+        );
     }
 
     private catchError(promise: Promise<unknown>) {
@@ -221,8 +260,17 @@ export class Bot {
             if (ctx.chat.last_name) {
                 options.push(`${ctx.chat.first_name} ${ctx.chat.last_name}`)
             }
-            return this.catchError(ctx.reply('Як тебе звати?',
-                Markup.inlineKeyboard(options.filter(Boolean).map(name => Markup.button.callback(name, RENAME_COMMAND + name), {columns: 1})))
+            return this.catchError(
+                ctx.reply(
+                    this.i18n.t('bot.what.you.name'),
+                    Markup.inlineKeyboard(
+                        options.filter(Boolean)
+                            .map(
+                                name => Markup.button.callback(name, RENAME_COMMAND + name),
+                                {columns: 1}
+                            )
+                    )
+                )
             )
         } catch (e) {
             this.logError(e)
@@ -296,7 +344,7 @@ export class Bot {
     private tryHandleFeedbackMessage(message: Message, ctx: Context) {
         const msg = message as Message.CommonMessage;
         try {
-            if ((msg.reply_to_message as Message.TextMessage)?.text === PROMPT_FEEDBACK) {
+            if ((msg.reply_to_message as Message.TextMessage)?.text === this.i18n.t('bot.button.feedback')) {
                 if (CURATORS.includes(message.from.id)) {
                     this.userService.getUsers().then(users => {
                         users.forEach(user => this.bot.telegram.sendMessage(user.userId, (message as Message.TextMessage).text.replace("$user", user.name)).catch())
@@ -306,7 +354,7 @@ export class Bot {
                         userId: ctx.chat.id,
                         timestamp: message.date,
                         id: message.message_id
-                    })).then(() => ctx.reply("Дякую за зворотній зв'язок!")).catch()
+                    })).then(() => ctx.reply(this.i18n.t('bot.feedback.thank'))).catch()
                 }
                 return true
             }

@@ -1,6 +1,7 @@
 export interface User {
     userId: number;
     name: string;
+    locale?: string;
     consent?: boolean;
 }
 

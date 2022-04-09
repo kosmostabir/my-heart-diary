@@ -1,0 +1,35 @@
+{
+  "bot.start.exist.user": "Hello, {{name}}",
+  "bot.start.desc": "Hello, I exist to preserve our shared memories, thoughts, experiences and reflections.",
+
+  "bot.button.feedback": "Write to us:",
+  "bot.button.thanks.for.listening": "Thank you for listening",
+  "bot.button.want.to.tell": "I want to say something",
+  "bot.button.consent": "consent",
+  "bot.button.refuse": "refuse",
+  "bot.button.want.add": "I want to add something",
+
+  "bot.set.name.success": "Nice to meet you, {{name}}",
+
+  "bot.rename": "New name:",
+
+  "bot.answer.thanks.for.listening": "Thank you for not being silent",
+  "bot.answer.want.tell": "I'm listening to you carefully️",
+  "bot.answer.want.add": "Of course, please tell",
+  "bot.answer.refuse.for.user": "Ok, your memories will remain secret.\nIf you wish, you can agree later with /{{command}}",
+  "bot.answer.refuse.for.curator": "{{name}} {{userId}} has revoked consent to the use of materials",
+  "bot.answer.dont.refuse": "Don't worry, your memories are a secret",
+  "bot.answer.consent.add": "Thank you for your contribution!",
+  "bot.answer.consent.exist": "Thank you, we already have your consent. More here /{{command}}",
+  "bot.answer.dont.understand": "Sorry, I don't understand such messages yet",
+
+  "bot.consent.agree": "Of course!",
+  "bot.consent.disagree": "No, they are just for me",
+
+  "bot.what.you.name": "What's your name?",
+  "bot.feedback.thank": "Thanks for the feedback!",
+
+  "bot.consent.text": "Will you allow the use of your memories in art projects?\nPersonal data will be processed in accordance with the Law of Ukraine 2297-VI On Personal Data Protection of 13.02.2022 Article 6.\nMore here /{{command }}",
+
+  "memory.add.success": "Thank you for writing"
+}
