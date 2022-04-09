@@ -4,17 +4,18 @@ export class I18nService {
 
     private i18nProvider: I18n;
 
-    constructor(client) {
+    constructor() {
          this.i18nProvider = new I18n({
              directory: __dirname + '/locales'
          })
-        if (client.locale) {
-            this.i18nProvider.setLocale(client.locale);
-        }
     }
 
     t(key, data = {}) {
         return this.i18nProvider.__(key, data);
+    }
+
+    setLocale(locale: string) {
+        return this.i18nProvider.setLocale(locale);
     }
 
     getLocale() {

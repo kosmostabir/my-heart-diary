@@ -48,6 +48,15 @@ export class Bot {
         private feedbackService: FeedbackService,
         private i18n: I18nService,
     ) {
+
+        this.bot.use(async (ctx, next) => {
+            let user = await this.userService.getUser(ctx.chat.id);
+            if(user && user.locale) {
+                this.i18n.setLocale(user.locale);
+            }
+            return next();
+        });
+
         this.bot.command('start', (ctx) => this.catchError(Promise.all([
                 this.sendTypingStatus(ctx),
                 this.userService.getUser(ctx.chat.id).then(user => {
