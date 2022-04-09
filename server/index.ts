@@ -22,7 +22,7 @@ new Pool({
     const userService: UserService = new UserService(client);
     const memoriesService = new MemoryService(client);
     const feedbackService = new FeedbackService(client);
-    const i18nService = new I18nService(client);
+    const i18nService = new I18nService();
     const bot = new Bot(userService, memoriesService, feedbackService, i18nService);
 
     // const notion = new Notion({auth: process.env.NOTION_TOKEN})
