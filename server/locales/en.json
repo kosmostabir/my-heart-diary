@@ -29,6 +29,10 @@
   "bot.what.you.name": "What's your name?",
   "bot.feedback.thank": "Thanks for the feedback!",
 
+  "bot.lang.change.desc": "Language Support:",
+  "bot.lang.change.success": "Selected English language",
+  "bot.lang.change.error": "Sorry, an error has occurred",
+
   "bot.consent.text": "Will you allow the use of your memories in art projects?\nPersonal data will be processed in accordance with the Law of Ukraine 2297-VI On Personal Data Protection of 13.02.2022 Article 6.\nMore here /{{command }}",
 
   "memory.add.success": "Thank you for writing"

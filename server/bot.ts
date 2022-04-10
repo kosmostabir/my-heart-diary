@@ -22,6 +22,8 @@ const MESSAGE_TYPE_TO_KEY: Record<MemoryType, string> = {
     [MemoryType.VIDEO_NOTE]: 'video_note',
 }
 
+const LANG_PREFIX = 'lang_';
+
 const UNKNOWN_MESSAGE_ERROR = 'Unprocessable Message';
 
 const CONSENT_COMMAND = 'consent';
@@ -29,6 +31,7 @@ const ABOUT_COMMAND = 'about';
 const MEMORIES_COMMAND = 'memories';
 const FEEDBACK_COMMAND = 'feedback';
 const RENAME_COMMAND = 'rename';
+const LANG_COMMAND = 'lang';
 
 const FORCE_REPLY_MARKUP = {reply_markup: {force_reply: true}} as const;
 
@@ -90,6 +93,41 @@ export class Bot {
         })));
 
         this.bot.command(RENAME_COMMAND,ctx => this.catchError(ctx.reply(this.i18n.t('bot.rename'), FORCE_REPLY_MARKUP)));
+
+        this.bot.command(
+            LANG_COMMAND,
+            ctx => this.catchError(
+                ctx.reply(
+                    this.i18n.t('bot.lang.change.desc'),
+                    Markup.inlineKeyboard(
+                        this.i18n.getLocales().map(locale => Markup.button.callback(locale, LANG_PREFIX + locale))
+                    )
+                )
+            )
+        );
+
+        this.i18n.getLocales().forEach(
+            (locale) => {
+                this.bot.action(
+                    LANG_PREFIX + locale,
+                    (ctx) => {
+                        let query = ctx.update.callback_query as CallbackQuery.DataCallbackQuery;
+                        if (query.data) {
+                            let locale = query.data.substring(LANG_PREFIX.length);
+                            this.userService.updateLocale(
+                                ctx.chat.id,
+                                locale
+                            ).then(() => {
+                                this.i18n.setLocale(locale);
+                                ctx.reply(this.i18n.t('bot.lang.change.success'))
+                            });
+                        } else {
+                            ctx.reply(this.i18n.t('bot.lang.change.error'));
+                        }
+                    }
+                )
+            }
+        );
 
         this.bot.action(/rename.+/, ctx => {
             const name = (ctx.update.callback_query as CallbackQuery.DataCallbackQuery)?.data?.replace('rename', '')

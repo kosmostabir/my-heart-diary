@@ -34,4 +34,8 @@ export class UserService {
     public updateUser({name, consent, userId}: User) {
         return this.client.query('UPDATE users SET name=$1,consent=$2 WHERE "userId"=$3', [name, consent, userId])
     }
+
+    public updateLocale(userId: number, locale: string) {
+        return this.client.query('UPDATE users SET locale=$2 WHERE "userId"=$1', [userId, locale])
+    }
 }
