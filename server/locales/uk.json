@@ -1,12 +1,12 @@
 {
   "bot.start.exist.user": "Привіт, {{name}}",
   "bot.start.desc": "Привіт, я існую задля збереження наших спільних спогадів, думок, переживань та рефлексій.",
+  "bot.choose.language": "Я поки що знаю лише ці мови",
+  "bot.language.updated": "Ок, відтепер {{lang}}",
 
   "bot.button.feedback": "Напиши нам:",
   "bot.button.thanks.for.listening": "Дякую, що вислухав",
   "bot.button.want.to.tell": "Хочу щось розповісти",
-  "bot.button.consent": "consent",
-  "bot.button.refuse": "refuse",
   "bot.button.want.add": "Хочу щось додати",
 
   "bot.set.name.success": "Радий знайомству, {{name}}",

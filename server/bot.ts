@@ -4,13 +4,17 @@ import {UserService} from "./user.service";
 import {ABOUT_PAGE, MEMORIES_PAGE} from "./constants";
 import {Update} from "typegram/update";
 import {CallbackQuery, Message} from "telegraf/typings/core/types/typegram";
-import {Memory, MemoryType} from "./models";
+import {Memory, MemoryType, User} from "./models";
 import {MemoryService} from "./memory.service";
 import {FeedbackService} from "./feedback.service";
-import {I18nService} from "./I18n.service";
+import {LocalizationService} from "./localization.service";
 
 const DEV_ID = 230373802;
 const CURATORS = JSON.parse(`[${process.env.CURATORS || DEV_ID}]`);
+const locales: Array<{ code: string, name: string }> = [
+    {name: "English", code: 'en'},
+    {name: "Українська", code: 'uk'},
+]
 
 const MESSAGE_TYPE_TO_KEY: Record<MemoryType, string> = {
     [MemoryType.FILE]: 'document',
@@ -29,10 +33,18 @@ const ABOUT_COMMAND = 'about';
 const MEMORIES_COMMAND = 'memories';
 const FEEDBACK_COMMAND = 'feedback';
 const RENAME_COMMAND = 'rename';
+const SET_LANGUAGE_COMMAND = 'language';
 
 const FORCE_REPLY_MARKUP = {reply_markup: {force_reply: true}} as const;
 
-type BotContext = Context & { chat: Chat.PrivateChat };
+const userStates = new Map<User['userId'], Partial<{
+    isChangingName: boolean;
+    isLeavingFeedback: boolean;
+}>>()
+
+type BotContext =
+    Context
+    & { chat: Chat.PrivateChat, user: User, localize: (key: string, interpolationParams?: Record<string, string | number>) => string };
 
 const HOST = process.env.HEROKU_URL;
 
@@ -46,138 +58,182 @@ export class Bot {
         private userService: UserService,
         private memoriesService: MemoryService,
         private feedbackService: FeedbackService,
-        private i18n: I18nService,
+        private localizationService: LocalizationService,
     ) {
 
-        this.bot.use(async (ctx, next) => {
-            let user = await this.userService.getUser(ctx.chat.id);
-            if(user && user.locale) {
-                this.i18n.setLocale(user.locale);
-            }
+        this.bot.use(async (ctx: BotContext, next) => {
+            ctx.user = await this.userService.getUser(ctx.chat.id);
+            ctx.localize = this.localizationService.getLocale(ctx.user?.locale || (ctx.message || ctx.update as any)?.from?.language_code)
             return next();
         });
 
         this.bot.command('start', (ctx) => this.catchError(Promise.all([
-                this.sendTypingStatus(ctx),
-                this.userService.getUser(ctx.chat.id).then(user => {
-                    if (user) {
-                        return ctx.reply(
-                            this.i18n.t(
-                                'bot.start.exist.user',
-                                {
-                                    "name": user.name
-                                }
-                            ),
-                            this.getWantToTellMarkUp()
-                        );
-                    } else {
-                        this.bot.telegram.sendMessage(
-                            ctx.chat.id,
-                            this.i18n.t('bot.start.desc'),
-                        ).then(() => this.askUserName(ctx as BotContext));
-                    }
-                }),
-            ])));
-        this.bot.command(FEEDBACK_COMMAND, ctx => this.catchError(ctx.reply(this.i18n.t('bot.button.feedback'), FORCE_REPLY_MARKUP)));
+            this.sendTypingStatus(ctx),
+            this.userService.getUser(ctx.chat.id).then(user => {
+                if (user) {
+                    return ctx.reply(
+                        ctx.localize(
+                            'bot.start.exist.user',
+                            {
+                                "name": user.name
+                            }
+                        ),
+                        this.getWantToTellMarkUp(ctx.localize)
+                    );
+                } else {
+                    this.bot.telegram.sendMessage(
+                        ctx.chat.id,
+                        ctx.localize('bot.start.desc'),
+                    ).then(() => this.askUserName(ctx as BotContext));
+                }
+            }),
+        ])));
+        this.bot.command(SET_LANGUAGE_COMMAND, ctx => this.catchError(ctx.reply(ctx.localize('bot.choose.language'), this.getLanguagesMarkup(ctx as BotContext))));
+        this.bot.command(FEEDBACK_COMMAND, ctx => {
+            userStates.set(ctx.user.userId, {isLeavingFeedback: true})
+            return this.catchError(ctx.reply(ctx.localize('bot.button.feedback'), FORCE_REPLY_MARKUP))
+        });
         this.bot.command(MEMORIES_COMMAND, ctx => this.catchError(ctx.reply(`${HOST}/${MEMORIES_PAGE}`)));
         this.bot.command(ABOUT_COMMAND, ctx => this.catchError(ctx.reply(`${HOST}/${ABOUT_PAGE}`)));
         this.bot.command(CONSENT_COMMAND, ctx => this.catchError(this.getUser(ctx).then(user => {
             if (user.consent) {
-                return ctx.reply(this.i18n.t('bot.answer.consent.exist', {"command": ABOUT_COMMAND}))
+                return ctx.reply(ctx.localize('bot.answer.consent.exist', {"command": ABOUT_COMMAND}))
             } else {
                 return this.askForConsent(ctx)
             }
         })));
 
-        this.bot.command(RENAME_COMMAND,ctx => this.catchError(ctx.reply(this.i18n.t('bot.rename'), FORCE_REPLY_MARKUP)));
+        this.bot.command(RENAME_COMMAND, ctx => {
+            userStates.set(ctx.chat.id, {isChangingName: true});
+            return this.catchError(ctx.reply(ctx.localize('bot.rename'), FORCE_REPLY_MARKUP))
+        });
 
         this.bot.action(/rename.+/, ctx => {
             const name = (ctx.update.callback_query as CallbackQuery.DataCallbackQuery)?.data?.replace('rename', '')
+            userStates.delete(ctx.chat.id);
             return this.catchError(this.userService.createUser({
                     userId: ctx.chat.id,
                     name,
-                }).then(() => ctx.reply(this.i18n.t('bot.set.name.success', {"name": name}))
-                    .then(() => this.askForConsent(ctx)))
+                }).then(() => this.replyCallback(ctx, ctx.localize('bot.set.name.success', {"name": name})))
+                    .then(() => this.askForConsent(ctx))
             );
         })
 
-        this.bot.action(this.i18n.t('bot.button.thanks.for.listening'), ctx => this.catchError(this.replyCallback(ctx,
-            this.i18n.t('bot.answer.thanks.for.listening'),
-            Markup.inlineKeyboard([Markup.button.callback(this.i18n.t('bot.button.want.to.tell'), this.i18n.t('bot.button.want.to.tell'))]))
+        this.bot.action(/language.+/, ctx => {
+            const locale = (ctx.update.callback_query as CallbackQuery.DataCallbackQuery)?.data?.replace('language', '');
+            userStates.delete(ctx.chat.id)
+            if (!locale) {
+                return this.catchError(this.userService.updateUser({
+                    ...ctx.user,
+                    locale: undefined
+                }).then(() => this.replyCallback(ctx, this.localizationService.getLocale(locale)('bot.language.use.default'))))
+            } else {
+                const langName = locales.find(({code}) => code === locale)?.name;
+                if (langName) {
+                    return this.catchError(this.userService.updateUser({
+                        ...ctx.user,
+                        locale
+                    }).then(() => this.replyCallback(ctx, this.localizationService.getLocale(locale)('bot.language.updated', {lang: langName}))))
+                }
+            }
+        })
+
+        this.bot.action('bot.button.thanks.for.listening', ctx => this.catchError(this.replyCallback(ctx,
+            ctx.localize('bot.answer.thanks.for.listening'),
+            Markup.inlineKeyboard([Markup.button.callback(ctx.localize('bot.button.want.to.tell'), 'bot.button.want.to.tell')]))
         ));
 
-        this.bot.action(this.i18n.t('bot.button.want.to.tell'), ctx => this.catchError(this.replyCallback(ctx,
-            this.i18n.t('bot.answer.want.tell'),
+        this.bot.action('bot.button.want.to.tell', ctx => this.catchError(this.replyCallback(ctx,
+            ctx.localize('bot.answer.want.tell'),
             Markup.removeKeyboard()
         )));
 
-        this.bot.action(this.i18n.t('bot.button.want.add'), ctx => this.catchError(this.replyCallback(ctx,
-            this.i18n.t('bot.answer.want.add'),
+        this.bot.action('bot.button.want.add', ctx => this.catchError(this.replyCallback(ctx,
+            ctx.localize('bot.answer.want.add'),
             Markup.removeKeyboard(),
         )));
 
-        this.bot.action(this.i18n.t('bot.button.refuse'), ctx => this.catchError(this.getUser(ctx).then(user => {
+        this.bot.action('bot.button.refuse', ctx => this.catchError(this.getUser(ctx).then(user => {
             if (user.consent) {
                 return this.userService.updateUser({
                     ...user,
                     consent: true
                 }).then(() => this.replyCallback(ctx,
-                    this.i18n.t('bot.answer.refuse.for.user', {"command": CONSENT_COMMAND}),
-                    this.getWantToTellMarkUp()
+                    ctx.localize('bot.answer.refuse.for.user', {"command": CONSENT_COMMAND}),
+                    this.getWantToTellMarkUp(ctx.localize)
                 )).then(() => CURATORS.forEach(curator =>
                     this.bot.telegram.sendMessage(
                         curator,
-                        this.i18n.t(
+                        ctx.localize(
                             'bot.answer.refuse.for.curator',
                             {"name": user.name, "userId": user.userId}
                         )
                     )))
             } else {
-                ctx.telegram.answerCbQuery(ctx.update.callback_query.id);
-                ctx.reply(this.i18n.t('bot.answer.dont.refuse'), this.getWantToTellMarkUp());
+                return this.replyCallback(ctx, ctx.localize('bot.answer.dont.refuse'), this.getWantToTellMarkUp(ctx.localize));
             }
         })));
 
-        this.bot.action(this.i18n.t('bot.button.consent'), ctx => this.catchError(this.getUser(ctx).then(user => {
+        this.bot.action('bot.button.consent', ctx => this.catchError(this.getUser(ctx).then(user => {
             if (!user.consent) {
                 return this.userService.updateUser({
                     ...user,
                     consent: true
-                }).then(() => this.replyCallback(ctx, this.i18n.t('bot.answer.consent.add'), this.getWantToTellMarkUp()));
+                }).then(() => this.replyCallback(ctx, ctx.localize('bot.answer.consent.add'), this.getWantToTellMarkUp(ctx.localize)));
             } else {
-                return this.replyCallback(ctx, this.i18n.t('bot.answer.consent.exist'), this.getWantToTellMarkUp());
+                return this.replyCallback(ctx, ctx.localize('bot.answer.consent.exist'), this.getWantToTellMarkUp(ctx.localize));
             }
         })));
 
         this.bot.on("message", ctx => this.catchError(this.getUser(ctx, false).then(user => {
             const message = ctx.message
             if (user) {
-                if (this.tryHandleFeedbackMessage(message, ctx)) {
-
+                if (userStates.get(ctx.chat.id)?.isLeavingFeedback) {
+                    userStates.delete(ctx.chat.id);
+                    if (CURATORS.includes(message.from.id)) {
+                        return this.userService.getUsers().then(users =>
+                            users.reduce((prevPromise, user) =>
+                                this.catchError(this.bot.telegram.sendMessage(user.userId, (message as Message.TextMessage).text.replace("$user", user.name))), Promise.resolve()
+                            )
+                        )
+                    } else {
+                        return this.feedbackService.addFeedback(this.prepareMessage(message, {
+                            userId: ctx.chat.id,
+                            timestamp: message.date,
+                            id: message.message_id
+                        })).then(() => ctx.reply(ctx.localize('bot.feedback.thank')))
+                    }
                 } else {
-                    const date = (message as Message.CommonMessage).forward_from?.id === ctx.chat.id
-                        ? (message as Message.CommonMessage).forward_date
-                        : message.date;
-                    return this.memoriesService.addMemory(this.prepareMessage(message, {
-                        timestamp: date,
-                        id: message.message_id,
-                        userId: ctx.chat.id,
-                    })).then(() => ctx.reply(this.i18n.t('memory.add.success')))
-                        .catch(e => {
-                            if (e === UNKNOWN_MESSAGE_ERROR) {
-                                return ctx.reply(this.i18n.t('bot.answer.dont.understand'))
-                                    .then(() => ctx.telegram.sendMessage(DEV_ID, e))
-                                    .then(() => ctx.telegram.sendMessage(DEV_ID, JSON.stringify(ctx.message)));
-                            }
-                            throw e;
+                    if (isTextMessage(message) && userStates.get(ctx.chat.id)?.isChangingName) {
+                        return this.userService.updateUser({
+                            ...user,
+                            name: message.text.slice(0, 50)
                         })
+                    } else {
+                        const date = (message as Message.CommonMessage).forward_from?.id === ctx.chat.id
+                            ? (message as Message.CommonMessage).forward_date
+                            : message.date;
+                        return this.memoriesService.addMemory(this.prepareMessage(message, {
+                            timestamp: date,
+                            id: message.message_id,
+                            userId: ctx.chat.id,
+                        })).then(() => ctx.reply(ctx.localize('memory.add.success')))
+                            .catch(e => {
+                                if (e === UNKNOWN_MESSAGE_ERROR) {
+                                    return ctx.reply(ctx.localize('bot.answer.dont.understand'))
+                                        .then(() => ctx.telegram.sendMessage(DEV_ID, e))
+                                        .then(() => ctx.telegram.sendMessage(DEV_ID, JSON.stringify(ctx.message)));
+                                }
+                                throw e;
+                            })
+                    }
                 }
             } else {
                 if (isTextMessage(message)) {
                     return this.userService.createUser({
                         userId: ctx.chat.id,
                         name: message.text,
-                    }).then(() => ctx.reply(this.i18n.t('bot.set.name.success', {"name": message.text})))
+                    }).then(() => ctx.reply(ctx.localize('bot.set.name.success', {"name": message.text})))
                         .then(() => this.askForConsent(ctx))
                 } else {
                     return this.askUserName(ctx as BotContext)
@@ -224,12 +280,12 @@ export class Bot {
         })
     }
 
-    private getWantToTellMarkUp() {
+    private getWantToTellMarkUp(localize: BotContext['localize']) {
         return Markup.inlineKeyboard(
             [
                 Markup.button.callback(
-                    this.i18n.t('bot.button.want.to.tell'),
-                    this.i18n.t('bot.button.want.to.tell')
+                    localize('bot.button.want.to.tell'),
+                    'bot.button.want.to.tell'
                 )
             ]
         );
@@ -237,11 +293,11 @@ export class Bot {
 
     private askForConsent(ctx) {
         return ctx.reply(
-            this.i18n.t('bot.consent.text', {"command": ABOUT_PAGE}),
+            ctx.localize('bot.consent.text', {"command": ABOUT_PAGE}),
             Markup.inlineKeyboard(
                 [
-                    Markup.button.callback(this.i18n.t('bot.consent.agree'), this.i18n.t('bot.button.consent')),
-                    Markup.button.callback(this.i18n.t('bot.consent.disagree'), this.i18n.t('bot.button.refuse')),
+                    Markup.button.callback(ctx.localize('bot.consent.agree'), 'consent'),
+                    Markup.button.callback(ctx.localize('bot.consent.disagree'), 'refuse'),
                 ],
                 {
                     columns: 1
@@ -271,7 +327,7 @@ export class Bot {
             }
             return this.catchError(
                 ctx.reply(
-                    this.i18n.t('bot.what.you.name'),
+                    ctx.localize('bot.what.you.name'),
                     Markup.inlineKeyboard(
                         options.filter(Boolean)
                             .map(
@@ -350,26 +406,16 @@ export class Bot {
         throw Error(UNKNOWN_MESSAGE_ERROR);
     }
 
-    private tryHandleFeedbackMessage(message: Message, ctx: Context) {
-        const msg = message as Message.CommonMessage;
-        try {
-            if ((msg.reply_to_message as Message.TextMessage)?.text === this.i18n.t('bot.button.feedback')) {
-                if (CURATORS.includes(message.from.id)) {
-                    this.userService.getUsers().then(users => {
-                        users.forEach(user => this.bot.telegram.sendMessage(user.userId, (message as Message.TextMessage).text.replace("$user", user.name)).catch())
-                    })
-                } else {
-                    this.feedbackService.addFeedback(this.prepareMessage(message, {
-                        userId: ctx.chat.id,
-                        timestamp: message.date,
-                        id: message.message_id
-                    })).then(() => ctx.reply(this.i18n.t('bot.feedback.thank'))).catch()
-                }
-                return true
-            }
-        } catch (e) {
-
-        }
+    private getLanguagesMarkup(ctx: BotContext) {
+        return Markup.inlineKeyboard(locales
+            .map(({
+                      name,
+                      code,
+                  }) => code === ctx.user.locale
+                ? Markup.button.callback('✓ ' + name, `${SET_LANGUAGE_COMMAND}`)
+                : Markup.button.callback(name, `${SET_LANGUAGE_COMMAND}${code}`)), {
+            columns: 1
+        })
     }
 }
 

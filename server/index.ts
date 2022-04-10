@@ -4,7 +4,7 @@ import {Bot} from "./bot";
 import {Pool} from "pg";
 import {MemoryService} from "./memory.service";
 import {FeedbackService} from "./feedback.service";
-import {I18nService} from "./I18n.service";
+import {LocalizationService} from "./localization.service";
 
 // const {Client: Notion} = require("@notionhq/client");
 
@@ -22,8 +22,8 @@ new Pool({
     const userService: UserService = new UserService(client);
     const memoriesService = new MemoryService(client);
     const feedbackService = new FeedbackService(client);
-    const i18nService = new I18nService();
-    const bot = new Bot(userService, memoriesService, feedbackService, i18nService);
+    const localization = new LocalizationService();
+    const bot = new Bot(userService, memoriesService, feedbackService, localization);
 
     // const notion = new Notion({auth: process.env.NOTION_TOKEN})
 
@@ -41,48 +41,6 @@ new Pool({
         done();
         bot.stop('SIGTERM')
     })
-
-    // app.get("/api/move", (req, res) => {
-    //         function getPageOfUsers(cursor?: string) {
-    //             return notion.databases.query({
-    //                 database_id: 'ada738a563ac4376956f47ef5ccb2294',
-    //                 start_cursor: cursor,
-    //             }).then((page) => {
-    //                 return Promise.all(page.results.map(user => notion.blocks.children.list({
-    //                         block_id: user.properties.personalPageId.rich_text[0].text.content
-    //                     }).then(page => {
-    //                         return userService.createUser({
-    //                             userId: user.properties.telegramId.title[0].plain_text,
-    //                             name: user.properties.name.rich_text[0].plain_text.slice(0, 50),
-    //                             consent: user.properties.consent.checkbox
-    //                         }).catch((e) => {
-    //                             console.trace(e);
-    //                             console.log(user.properties.telegramId.title[0].plain_text,
-    //                                 user.properties.name.rich_text[0].plain_text,
-    //                                 user.properties.consent.checkbox
-    //                             )
-    //                         })
-    //                         //.then(() =>
-    //                         //             notion.blocks.children.list({
-    //                         //                 block_id: user.properties.personalPageId.rich_text[0].plain_text
-    //                         //             }).then(page => {
-    //                         //                 page.results.forEach(memory => {
-    //                         //                     const m: Memory = {
-    //                         //                         text: memory.paragraph.rich_text[1].plain_text,
-    //                         //                         type: MemoryType.TEXT,
-    //                         //                     }
-    //                         //                 })
-    //                         //             }).catch(console.log)
-    //                         //         })
-    //                         //     ));
-    //                     }))
-    //                 ).then(() => page.has_more ? getPageOfUsers(page.next_cursor) : Promise.resolve())
-    //             })
-    //         }
-    //
-    //         getPageOfUsers().then(() => console.log("DONE"))
-    //     }
-    // )
 
     function authenticate(authDataCookie) {
         try {
@@ -155,7 +113,7 @@ new Pool({
     app.use(express.static(path.join(__dirname, "..", "build")));
     app.use(express.static("public"));
 
-    app.use((req, res, next) => {
+    app.use((req, res) => {
         const telegramId = authenticate(req.header('Cookie'));
         res.cookie("role", [...CURATORS, DEV_ID].includes(telegramId) && 'true')
             .sendFile(path.join(__dirname, "..", "build", "index.html"));
