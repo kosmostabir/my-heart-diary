@@ -81,7 +81,7 @@ export class Bot {
                         this.getWantToTellMarkUp(ctx.localize)
                     );
                 } else {
-                    this.bot.telegram.sendMessage(
+                    return this.bot.telegram.sendMessage(
                         ctx.chat.id,
                         ctx.localize('bot.start.desc'),
                     ).then(() => this.askUserName(ctx as BotContext));
@@ -192,9 +192,9 @@ export class Bot {
                     userStates.delete(ctx.chat.id);
                     if (CURATORS.includes(message.from.id)) {
                         return this.userService.getUsers().then(users =>
-                            users.reduce((prevPromise, user) =>
-                                this.catchError(this.bot.telegram.sendMessage(user.userId, (message as Message.TextMessage).text.replace("$user", user.name))), Promise.resolve()
-                            )
+                            Promise.all(users.map(user =>
+                                this.catchError(this.bot.telegram.sendMessage(user.userId, (message as Message.TextMessage).text.replace("$user", user.name)))
+                            ))
                         )
                     } else {
                         return this.feedbackService.addFeedback(this.prepareMessage(message, {
