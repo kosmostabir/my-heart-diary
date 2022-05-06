@@ -51,7 +51,7 @@ export default class Users extends React.Component<{}, UsersComponentState> {
                                     field: 'totalmemories',
                                     headerName: "Всього спогадів",
                                     type: "number",
-                                    renderCell: params => params.row.lastmemory ? params.value : 0,
+                                    renderCell: params => params.row.lastMemory ? params.value : 0,
                                     width: 150
                                 }
                             ]}
