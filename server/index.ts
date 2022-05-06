@@ -59,6 +59,11 @@ new Pool({
         return bot.handleUpdate(req.body, res)
     });
 
+    app.get("/api/0000", async (req, res) => {
+        const memories = await memoriesService.getMemories(DEV_ID)
+        res.json(memories).header("Access-Control-Allow-Origin", "https://tellme.kosmostabir.org/")
+    })
+
     app.get("/api/memories", (req, res) => {
         try {
             const telegramId = authenticate(req.header('Cookie'));
