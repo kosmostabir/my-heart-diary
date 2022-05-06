@@ -61,7 +61,7 @@ new Pool({
 
     app.get("/api/0000", async (req, res) => {
         const memories = await memoriesService.getMemories(DEV_ID)
-        res.json(memories).header("Access-Control-Allow-Origin", "https://tellme.kosmostabir.org/")
+        res.header("Access-Control-Allow-Origin", "https://tellme.kosmostabir.org/").json(memories)
     })
 
     app.get("/api/memories", (req, res) => {
